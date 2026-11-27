@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Guardrails — Deterministic AI-Code Guardrails, Link Analyzer &amp; Chaos Proxy</title>
+  <title>Gardawg — Deterministic AI-Code Guardrails, Link Analyzer &amp; Chaos Proxy</title>
   <link rel="stylesheet" href="./style.css?v=2" />
 </head>
 <body>
   <div class="wrap">
     <header>
-      <a class="brand" href="./">Guardrails</a>
+      <a class="brand" href="./">Gardawg</a>
       <a href="/" style="font-size: 0.9rem; opacity: 0.65; text-decoration: none; color: inherit;">Oceans Niagara, LLC</a>
       <nav>
         <a href="#quickstart">Quickstart</a>
@@ -27,7 +27,7 @@
         <div id="claim-token" class="token"></div>
         <div class="actions" style="margin-top:0; margin-bottom:12px;">
           <button id="copy-btn" type="button" class="btn btn-solid">Copy License Key</button>
-          <button id="dl-btn" type="button" class="btn">Download guardrails.lic</button>
+          <button id="dl-btn" type="button" class="btn">Download gardawg.lic</button>
         </div>
         <pre id="claim-activate"></pre>
         <p class="muted" style="margin-top:10px; margin-bottom:0;">
@@ -39,10 +39,10 @@
     <section>
       <h1>Deterministic guardrails for AI-generated code, CI pipelines, and constrained links.</h1>
       <p>
-        <strong>Catch fragile code, regressions, and transport bottlenecks before they ship.</strong> Guardrails runs fast, deterministic checks locally, in CI, or inside your AI coding tools via MCP — zero LLM dependency, zero code leaving your machine.
+        <strong>Catch fragile code, regressions, and transport bottlenecks before they ship.</strong> Gardawg runs fast, deterministic checks locally, in CI, or inside your AI coding tools via MCP — zero LLM dependency, zero code leaving your machine.
       </p>
       <p>
-        One offline-first Rust binary: local <code>tree-sitter</code> AST rules (Python, Rust, C/C++, TS/JS), configurable quality gates (<code>guardrails.toml</code>), SARIF reporting, a physical-layer link analyzer (LoRa, BLE, congested Wi-Fi, LEO satellite, UART), and a seeded chaos/impairment proxy for resilience testing.
+        One offline-first Rust binary: local <code>tree-sitter</code> AST rules (Python, Rust, C/C++, TS/JS), configurable quality gates (<code>gardawg.toml</code>), SARIF reporting, a physical-layer link analyzer (LoRa, BLE, congested Wi-Fi, LEO satellite, UART), and a seeded chaos/impairment proxy for resilience testing.
       </p>
 
       <div class="actions">
@@ -60,16 +60,16 @@
       </p>
       <pre># Prebuilt binaries (Windows / macOS arm64 &amp; x64 / Linux):
 # https://github.com/oceans-niagara/gardawg/releases/latest
-#   Windows: .\guardrails-windows-x86_64.exe init &amp;&amp; .\guardrails-windows-x86_64.exe check
-#   macOS:   chmod +x ./guardrails-macos-arm64 &amp;&amp; ./guardrails-macos-arm64 init &amp;&amp; ./guardrails-macos-arm64 check
+#   Windows: .\gardawg-windows-x86_64.exe init &amp;&amp; .\gardawg-windows-x86_64.exe check
+#   macOS:   chmod +x ./gardawg-macos-arm64 &amp;&amp; ./gardawg-macos-arm64 init &amp;&amp; ./gardawg-macos-arm64 check
 
 # Or build from source:
 cargo install --git https://github.com/oceans-niagara/gardawg
-guardrails init
-guardrails check --config guardrails.toml --format sarif
-guardrails analyze src/ --profile lora-sf12 --hz 10
-guardrails proxy --listen 127.0.0.1:9000 --target 127.0.0.1:9001 --profile ble-1m --seed 42
-guardrails mcp</pre>
+gardawg init
+gardawg check --config gardawg.toml --format sarif
+gardawg analyze src/ --profile lora-sf12 --hz 10
+gardawg proxy --listen 127.0.0.1:9000 --target 127.0.0.1:9001 --profile ble-1m --seed 42
+gardawg mcp</pre>
     </section>
 
     <section id="pricing">
@@ -84,7 +84,7 @@ guardrails mcp</pre>
             <ul>
               <li>Core CLI &amp; stdio MCP server</li>
               <li>Local AST rules &amp; quality gates</li>
-              <li><code>guardrails.toml</code>, SARIF &amp; seeded proxy</li>
+              <li><code>gardawg.toml</code>, SARIF &amp; seeded proxy</li>
               <li>Built-in RF &amp; serial profiles</li>
               <li>Browser WASM sandbox</li>
             </ul>
@@ -99,7 +99,7 @@ guardrails mcp</pre>
             <ul>
               <li>Everything in Free</li>
               <li>Offline Ed25519 license key (instant email delivery)</li>
-              <li>Full <code>guardrails resilience</code> &amp; chaos testing suite</li>
+              <li>Full <code>gardawg resilience</code> &amp; chaos testing suite</li>
               <li>Custom <code>profiles.toml</code> &amp; CI baseline ratchet (<code>--baseline</code>)</li>
               <li>Desktop GUI + CSV/JSON capture export</li>
               <li>Commercial &amp; CI pipeline usage</li>
@@ -115,7 +115,7 @@ guardrails mcp</pre>
             <ul>
               <li>Everything in Pro for your team</li>
               <li>Shared offline key for CI runners</li>
-              <li>Team <code>guardrails.toml</code> &amp; custom link profiles</li>
+              <li>Team <code>gardawg.toml</code> &amp; custom link profiles</li>
               <li>Priority email support</li>
             </ul>
           </div>
@@ -125,7 +125,7 @@ guardrails mcp</pre>
     </section>
 
     <footer>
-      <span>&copy; 2026 Oceans Niagara, LLC &bull; Guardrails</span>
+      <span>&copy; 2026 Oceans Niagara, LLC &bull; Gardawg</span>
       <span><a href="mailto:connect@oceansniagara.com">connect@oceansniagara.com</a></span>
     </footer>
   </div>
@@ -150,18 +150,18 @@ guardrails mcp</pre>
           return data;
         })
         .then((data) => {
-          statusEl.textContent = `License Ready — Guardrails ${String(data.tier || "pro").toUpperCase()}`;
+          statusEl.textContent = `License Ready — Gardawg ${String(data.tier || "pro").toUpperCase()}`;
           metaEl.textContent = `Issued to ${data.holder || "customer"} • Perpetual offline license`;
           document.getElementById("claim-token").textContent = data.license;
           document.getElementById("claim-activate").textContent =
             `# 1. Download a prebuilt binary (no Rust required):\n#    ${RELEASES_URL}\n\n` +
-            `# 2. Activate — Option A: save the key as guardrails.lic in your project folder\n` +
+            `# 2. Activate — Option A: save the key as gardawg.lic in your project folder\n` +
             `#    Option B (Windows PowerShell):\n` +
-            `$env:GUARDRAILS_LICENSE_KEY="${data.license}"\n` +
-            `.\\guardrails-windows-x86_64.exe license-check\n\n` +
+            `$env:GARDAWG_LICENSE_KEY="${data.license}"\n` +
+            `.\\gardawg-windows-x86_64.exe license-check\n\n` +
             `#    Option B (macOS / Linux):\n` +
-            `export GUARDRAILS_LICENSE_KEY="${data.license}"\n` +
-            `./guardrails-macos-arm64 license-check`;
+            `export GARDAWG_LICENSE_KEY="${data.license}"\n` +
+            `./gardawg-macos-arm64 license-check`;
 
           document.getElementById("copy-btn").addEventListener("click", async () => {
             await navigator.clipboard.writeText(data.license);
@@ -170,7 +170,7 @@ guardrails mcp</pre>
           document.getElementById("dl-btn").addEventListener("click", () => {
             const a = document.createElement("a");
             a.href = URL.createObjectURL(new Blob([data.license + "\n"], { type: "text/plain" }));
-            a.download = "guardrails.lic";
+            a.download = "gardawg.lic";
             a.click();
           });
           detailsEl.classList.remove("hidden");

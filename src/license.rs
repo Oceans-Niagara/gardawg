@@ -1,4 +1,4 @@
-﻿use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -104,17 +104,17 @@ pub fn verify_token_with_key(
 
 fn default_license_paths() -> Vec<PathBuf> {
     let mut paths = vec![
-        PathBuf::from("guardrails.lic"),
+        PathBuf::from("gardawg.lic"),
         PathBuf::from("linkguard.lic"),
     ];
     if let Some(appdata) = env::var_os("APPDATA") {
         let base = PathBuf::from(appdata);
-        paths.push(base.join("guardrails").join("license.lic"));
+        paths.push(base.join("gardawg").join("license.lic"));
         paths.push(base.join("linkguard").join("license.lic"));
     }
     if let Some(home) = env::var_os("HOME") {
         let cfg = PathBuf::from(home).join(".config");
-        paths.push(cfg.join("guardrails").join("license.lic"));
+        paths.push(cfg.join("gardawg").join("license.lic"));
         paths.push(cfg.join("linkguard").join("license.lic"));
     }
     paths
@@ -141,7 +141,7 @@ pub fn check_license_with_override(cli_key: Option<&str>) -> LicenseStatus {
         }
     }
 
-    for env_name in ["GUARDRAILS_LICENSE_KEY", "LINKGUARD_LICENSE"] {
+    for env_name in ["GARDAWG_LICENSE_KEY", "LINKGUARD_LICENSE"] {
         if let Ok(env_val) = env::var(env_name) {
             let trimmed = env_val.trim();
             if !trimmed.is_empty() {
@@ -233,7 +233,7 @@ pub fn require_pro_with_key(feature_name: &str, cli_key: Option<&str>) -> Result
     }
     let detail = status.error.map(|e| format!(" ({e})")).unwrap_or_default();
     Err(format!(
-        "'{feature_name}' requires a Pro or Team license{detail}. Pass --license-key, set GUARDRAILS_LICENSE_KEY / LINKGUARD_LICENSE, or place a signed key at ./guardrails.lic (or ./linkguard.lic)."
+        "'{feature_name}' requires a Pro or Team license{detail}. Pass --license-key, set GARDAWG_LICENSE_KEY / LINKGUARD_LICENSE, or place a signed key at ./gardawg.lic (or ./linkguard.lic)."
     ))
 }
 

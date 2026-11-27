@@ -1,4 +1,4 @@
-﻿mod analyzer;
+mod analyzer;
 mod budgets;
 mod chaos;
 mod config;
@@ -16,7 +16,7 @@ mod verify;
 
 use crate::analyzer::{scan_workspace, ScanOptions};
 use crate::budgets::{apply_baseline_ratchet, evaluate_payload_checks, load_standalone_budgets};
-use crate::config::GuardrailsConfig;
+use crate::config::GardawgConfig;
 use crate::license::{check_license_with_override, require_pro_with_key};
 use crate::physics::{all_profiles, evaluate_payload, resolve_profile};
 use crate::proxy::ProxyTransport;
@@ -30,16 +30,16 @@ use std::process::ExitCode;
 
 #[derive(Parser)]
 #[command(
-    name = "guardrails",
+    name = "gardawg",
     version,
-    about = "Unified deterministic AI guardrails, physical-layer analyzer, and chaos/impairment proxy"
+    about = "Unified deterministic AI gardawg, physical-layer analyzer, and chaos/impairment proxy"
 )]
 struct Cli {
     /// Target workspace directory
     #[arg(short, long, global = true, default_value = ".")]
     workspace: PathBuf,
 
-    /// Path to guardrails.toml (defaults to <workspace>/guardrails.toml)
+    /// Path to gardawg.toml (defaults to <workspace>/gardawg.toml)
     #[arg(short, long, global = true)]
     config: Option<PathBuf>,
 
@@ -47,8 +47,8 @@ struct Cli {
     #[arg(long, global = true)]
     profiles: Option<PathBuf>,
 
-    /// Offline Ed25519 license key or path (env: GUARDRAILS_LICENSE_KEY or LINKGUARD_LICENSE)
-    #[arg(long, global = true, env = "GUARDRAILS_LICENSE_KEY")]
+    /// Offline Ed25519 license key or path (env: GARDAWG_LICENSE_KEY or LINKGUARD_LICENSE)
+    #[arg(long, global = true, env = "GARDAWG_LICENSE_KEY")]
     license_key: Option<String>,
 
     #[command(subcommand)]
@@ -70,18 +70,18 @@ enum ChaosMode {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Create guardrails.toml, AGENTS.md, .mcp.json, and opencode.json (pass --link for starter link TOMLs)
+    /// Create gardawg.toml, AGENTS.md, .mcp.json, and opencode.json (pass --link for starter link TOMLs)
     Init {
         #[arg(long)]
         force: bool,
         #[arg(long, value_enum)]
         profile: Option<config::Profile>,
-        /// Also scaffold [link] in guardrails.toml plus starter profiles.toml & budgets.toml
+        /// Also scaffold [link] in gardawg.toml plus starter profiles.toml & budgets.toml
         #[arg(long)]
         link: bool,
     },
 
-    /// Sync AGENTS.md, .mcp.json, and opencode.json from guardrails.toml
+    /// Sync AGENTS.md, .mcp.json, and opencode.json from gardawg.toml
     Sync {
         #[arg(long)]
         force: bool,
@@ -221,12 +221,12 @@ async fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
     let workspace = cli.workspace.canonicalize().unwrap_or(cli.workspace);
-    let cfg = GuardrailsConfig::load(&workspace, cli.config.as_deref())?;
+    let cfg = GardawgConfig::load(&workspace, cli.config.as_deref())?;
     let custom_profiles = cli.profiles.as_deref();
 
     match cli.command {
         Commands::Init { force, profile, link } => {
-            let cfg_path = workspace.join("guardrails.toml");
+            let cfg_path = workspace.join("gardawg.toml");
             if cfg_path.exists() && !force {
                 anyhow::bail!("{} already exists (pass --force to overwrite)", cfg_path.display());
             }
@@ -237,7 +237,7 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                 &cfg_path,
                 config::render_toml_for_init(name, &detected, profile, link),
             )?;
-            let init_cfg = GuardrailsConfig::load(&workspace, Some(&cfg_path))?;
+            let init_cfg = GardawgConfig::load(&workspace, Some(&cfg_path))?;
             sync::sync_all(&workspace, &init_cfg, force)?;
 
             if link {
@@ -380,7 +380,7 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                 }
                 OutputFormat::Text => {
                     println!(
-                        "Guardrails Check [{}] | files={} | rules={} | profile={} | findings={} (baseline_suppressed={})",
+                        "Gardawg Check [{}] | files={} | rules={} | profile={} | findings={} (baseline_suppressed={})",
                         if report.passed { "PASS" } else { "FAIL" },
                         report.files_scanned,
                         report.rules_evaluated,

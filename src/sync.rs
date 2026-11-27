@@ -1,12 +1,12 @@
-﻿use crate::config::GuardrailsConfig;
+use crate::config::GardawgConfig;
 use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::Path;
 
-const START_MARKER: &str = "<!-- GUARDRAILS:START -->";
-const END_MARKER: &str = "<!-- GUARDRAILS:END -->";
+const START_MARKER: &str = "<!-- GARDAWG:START -->";
+const END_MARKER: &str = "<!-- GARDAWG:END -->";
 
-pub fn sync_all(workspace: &Path, cfg: &GuardrailsConfig, force: bool) -> anyhow::Result<()> {
+pub fn sync_all(workspace: &Path, cfg: &GardawgConfig, force: bool) -> anyhow::Result<()> {
     if cfg.sync.mcp_json {
         sync_mcp_json(&workspace.join(".mcp.json"), force)?;
     }
@@ -36,8 +36,8 @@ fn is_on_path(bin_name: &str) -> bool {
 }
 
 pub fn resolve_mcp_command() -> String {
-    if is_on_path("guardrails") {
-        return "guardrails".to_string();
+    if is_on_path("gardawg") {
+        return "gardawg".to_string();
     }
     if let Ok(exe) = std::env::current_exe() {
         let s = exe.to_string_lossy();
@@ -45,7 +45,7 @@ pub fn resolve_mcp_command() -> String {
         let s = s.strip_prefix(r"\\?\").unwrap_or(&s);
         return s.to_string();
     }
-    "guardrails".to_string()
+    "gardawg".to_string()
 }
 
 fn sync_mcp_json(path: &Path, force: bool) -> anyhow::Result<()> {
@@ -67,7 +67,7 @@ fn sync_mcp_json(path: &Path, force: bool) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("`mcpServers` must be a JSON object"))?;
 
     let resolved_cmd = resolve_mcp_command();
-    match servers.get_mut("guardrails").and_then(|v| v.as_object_mut()) {
+    match servers.get_mut("gardawg").and_then(|v| v.as_object_mut()) {
         Some(existing) if !force => {
             let missing_cmd = existing
                 .get("command")
@@ -83,7 +83,7 @@ fn sync_mcp_json(path: &Path, force: bool) -> anyhow::Result<()> {
         }
         _ => {
             servers.insert(
-                "guardrails".to_string(),
+                "gardawg".to_string(),
                 json!({
                     "command": resolved_cmd,
                     "args": ["mcp", "--workspace", "."]
@@ -119,9 +119,9 @@ fn sync_opencode_json(path: &Path, force: bool) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("`mcp` in opencode.json must be a JSON object"))?;
 
     let resolved_cmd = resolve_mcp_command();
-    if force || !mcp.contains_key("guardrails") {
+    if force || !mcp.contains_key("gardawg") {
         mcp.insert(
-            "guardrails".to_string(),
+            "gardawg".to_string(),
             json!({
                 "type": "local",
                 "command": [resolved_cmd, "mcp", "--workspace", "."],
@@ -135,12 +135,12 @@ fn sync_opencode_json(path: &Path, force: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn render_agents_managed_block(cfg: &GuardrailsConfig) -> String {
+pub fn render_agents_managed_block(cfg: &GardawgConfig) -> String {
     let mut bullets = vec![
         "### Mandatory 3-Step Definition of Done".to_string(),
-        "1. **Budget first:** Before designing wire frames, structs, or telemetry loops, call `evaluate_payload` (or `guardrails budget --profile <id> --bytes <n> --hz <r>`) to confirm MTU & goodput ceilings.".to_string(),
-        "2. **Check every edit:** After every code edit, run `guardrails_check` (or `guardrails check`) and fix all reported issues until `findings_count == 0`.".to_string(),
-        "3. **Verify runtime:** Before finishing, run `verify_runtime` (or `guardrails verify`) against the target profile/proxy to confirm no hangs, dropped-packet crashes, or corrupted state.".to_string(),
+        "1. **Budget first:** Before designing wire frames, structs, or telemetry loops, call `evaluate_payload` (or `gardawg budget --profile <id> --bytes <n> --hz <r>`) to confirm MTU & goodput ceilings.".to_string(),
+        "2. **Check every edit:** After every code edit, run `gardawg_check` (or `gardawg check`) and fix all reported issues until `findings_count == 0`.".to_string(),
+        "3. **Verify runtime:** Before finishing, run `verify_runtime` (or `gardawg verify`) against the target profile/proxy to confirm no hangs, dropped-packet crashes, or corrupted state.".to_string(),
         String::new(),
         "### Engineering Rules".to_string(),
     ];
@@ -195,12 +195,12 @@ pub fn render_agents_managed_block(cfg: &GuardrailsConfig) -> String {
     }
 
     format!(
-        "{START_MARKER}\n## Deterministic Guardrails (Managed by `guardrails sync`)\n{}\n{END_MARKER}",
+        "{START_MARKER}\n## Deterministic Guardrails (Managed by `gardawg sync`)\n{}\n{END_MARKER}",
         bullets.join("\n")
     )
 }
 
-fn sync_agents_md(path: &Path, cfg: &GuardrailsConfig) -> anyhow::Result<()> {
+fn sync_agents_md(path: &Path, cfg: &GardawgConfig) -> anyhow::Result<()> {
     let managed_block = render_agents_managed_block(cfg);
 
     let updated = if path.exists() {
@@ -235,16 +235,16 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
 
-        let cfg = GuardrailsConfig::default();
+        let cfg = GardawgConfig::default();
         sync_all(&dir, &cfg, false).unwrap();
         sync_all(&dir, &cfg, false).unwrap();
 
         let mcp: Value = serde_json::from_str(&fs::read_to_string(dir.join(".mcp.json")).unwrap()).unwrap();
-        assert!(mcp["mcpServers"]["guardrails"].is_object());
+        assert!(mcp["mcpServers"]["gardawg"].is_object());
 
         let opencode: Value = serde_json::from_str(&fs::read_to_string(dir.join("opencode.json")).unwrap()).unwrap();
-        assert_eq!(opencode["mcp"]["guardrails"]["type"], "local");
-        assert_eq!(opencode["mcp"]["guardrails"]["enabled"], true);
+        assert_eq!(opencode["mcp"]["gardawg"]["type"], "local");
+        assert_eq!(opencode["mcp"]["gardawg"]["enabled"], true);
 
         let agents = fs::read_to_string(dir.join("AGENTS.md")).unwrap();
         assert!(agents.contains("Mandatory 3-Step Definition of Done"));

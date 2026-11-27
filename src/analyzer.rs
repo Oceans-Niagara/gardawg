@@ -1,4 +1,4 @@
-﻿use crate::physics::{evaluate_payload, LinkProfile};
+use crate::physics::{evaluate_payload, LinkProfile};
 use crate::sarif::{Finding, Severity};
 use globset::{Glob, GlobSet, GlobSetBuilder};
 use ignore::WalkBuilder;
@@ -137,7 +137,7 @@ fn is_test_or_example_path(rel: &str) -> bool {
 
 fn line_suppressed(src: &str, line_idx: usize, rule_id: &str) -> bool {
     let line = src.lines().nth(line_idx).unwrap_or("");
-    for marker in ["guardrails-ignore", "linkguard-ignore"] {
+    for marker in ["gardawg-ignore", "linkguard-ignore"] {
         if let Some(pos) = line.find(marker) {
             let after = line[pos + marker.len()..].trim_start();
             if after.starts_with('(') {
@@ -157,7 +157,7 @@ fn line_suppressed(src: &str, line_idx: usize, rule_id: &str) -> bool {
 }
 
 fn make_hint(lang: Lang, rule_id: &str) -> String {
-    format!("{} guardrails-ignore({rule_id})", lang.comment_prefix())
+    format!("{} gardawg-ignore({rule_id})", lang.comment_prefix())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -301,7 +301,7 @@ pub fn analyze_source(
             source,
             lang,
             &format!("GR000-SYNTAX-ERROR-{}", lang.suffix()),
-            "guardrails-ast",
+            "gardawg-ast",
             Severity::Error,
             "critical",
             file_label,
@@ -390,7 +390,7 @@ pub fn analyze_source(
                 source,
                 lang,
                 "GR006-HARDCODED-SECRET",
-                "guardrails-ast",
+                "gardawg-ast",
                 Severity::Error,
                 "critical",
                 file_label,
@@ -412,7 +412,7 @@ pub fn analyze_source(
                     source,
                     lang,
                     "GR005-AI-COMMENT-PLACEHOLDER",
-                    "guardrails-ast",
+                    "gardawg-ast",
                     Severity::Warning,
                     "high",
                     file_label,
@@ -430,7 +430,7 @@ pub fn analyze_source(
                     source,
                     lang,
                     "GR005-AI-COMMENT-TODO",
-                    "guardrails-ast",
+                    "gardawg-ast",
                     Severity::Note,
                     "pedantic",
                     file_label,
@@ -783,7 +783,7 @@ fn walk_node(
         local_sink_vars: ctx.local_sink_vars.clone(),
     };
 
-    inspect_guardrails_node(
+    inspect_gardawg_node(
         node,
         source,
         text,
@@ -829,7 +829,7 @@ fn walk_node(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn inspect_guardrails_node(
+fn inspect_gardawg_node(
     node: Node,
     source: &str,
     text: &str,
@@ -864,7 +864,7 @@ fn inspect_guardrails_node(
                                 "GR001-FLOAT-MONEY-RUST"
                             };
                             push_finding(
-                                findings, source, lang, rule_id, "guardrails-ast",
+                                findings, source, lang, rule_id, "gardawg-ast",
                                 Severity::Error, "high", file_label, line, col, snippet.clone(),
                                 format!("Floating-point type `{ty}` used for monetary or quantity identifier `{ident}`."),
                                 None,
@@ -892,7 +892,7 @@ fn inspect_guardrails_node(
                         let is_io_risk = is_rust_critical_io_expr(val_txt);
                         if is_io_risk || pedantic {
                             push_finding(
-                                findings, source, lang, "GR004-SWALLOWED-ERR-RUST", "guardrails-ast",
+                                findings, source, lang, "GR004-SWALLOWED-ERR-RUST", "gardawg-ast",
                                 if is_io_risk { Severity::Warning } else { Severity::Note },
                                 if is_io_risk { "high" } else { "pedantic" },
                                 file_label, line, col, snippet.clone(),
@@ -914,7 +914,7 @@ fn inspect_guardrails_node(
                     .unwrap_or("");
                 if mac == "todo" {
                     push_finding(
-                        findings, source, lang, "GR005-AI-STUB-RUST-TODO", "guardrails-ast",
+                        findings, source, lang, "GR005-AI-STUB-RUST-TODO", "gardawg-ast",
                         Severity::Error, "critical", file_label, line, col, snippet.clone(),
                         "Unfinished `todo!()` macro left in code.".into(),
                         None,
@@ -923,7 +923,7 @@ fn inspect_guardrails_node(
                     );
                 } else if mac == "unimplemented" {
                     push_finding(
-                        findings, source, lang, "GR005-AI-STUB-RUST-UNIMPL", "guardrails-ast",
+                        findings, source, lang, "GR005-AI-STUB-RUST-UNIMPL", "gardawg-ast",
                         Severity::Error, "critical", file_label, line, col, snippet.clone(),
                         "Unfinished `unimplemented!()` macro left in code.".into(),
                         None,
@@ -941,7 +941,7 @@ fn inspect_guardrails_node(
                     .unwrap_or("");
                 if callee == "reqwest::Client::new" {
                     push_finding(
-                        findings, source, lang, "GR002-MISSING-TIMEOUT-RUST", "guardrails-ast",
+                        findings, source, lang, "GR002-MISSING-TIMEOUT-RUST", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         "`reqwest::Client::new()` has no default request timeout.".into(),
                         None,
@@ -955,7 +955,7 @@ fn inspect_guardrails_node(
                     && !source[..node.start_byte()].contains("#[cfg(test)]")
                 {
                     push_finding(
-                        findings, source, lang, "GR007-PANIC-UNWRAP-RUST", "guardrails-ast",
+                        findings, source, lang, "GR007-PANIC-UNWRAP-RUST", "gardawg-ast",
                         Severity::Warning, "high", file_label, line, col, snippet,
                         "`.unwrap()` in production Rust code can panic at runtime.".into(),
                         None,
@@ -979,7 +979,7 @@ fn inspect_guardrails_node(
                             .unwrap_or("");
                         if is_money_name(lhs) {
                             push_finding(
-                                findings, source, lang, "GR001-FLOAT-MONEY-PY", "guardrails-ast",
+                                findings, source, lang, "GR001-FLOAT-MONEY-PY", "gardawg-ast",
                                 Severity::Error, "high", file_label, line, col, snippet.clone(),
                                 format!("Python `float` annotation used on monetary/quantity identifier `{lhs}`."),
                                 None,
@@ -1001,7 +1001,7 @@ fn inspect_guardrails_node(
                     .trim();
                 if body_txt == "pass" {
                     push_finding(
-                        findings, source, lang, "GR004-SWALLOWED-ERR-PY", "guardrails-ast",
+                        findings, source, lang, "GR004-SWALLOWED-ERR-PY", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         "`except ...: pass` silently swallows failures.".into(),
                         None,
@@ -1014,7 +1014,7 @@ fn inspect_guardrails_node(
             // GR005: raise NotImplementedError(...)
             if kind == "raise_statement" && text.contains("NotImplementedError") {
                 push_finding(
-                    findings, source, lang, "GR005-AI-STUB-PY", "guardrails-ast",
+                    findings, source, lang, "GR005-AI-STUB-PY", "gardawg-ast",
                     Severity::Error, "critical", file_label, line, col, snippet.clone(),
                     "Unfinished `NotImplementedError` placeholder left in code.".into(),
                     None,
@@ -1034,7 +1034,7 @@ fn inspect_guardrails_node(
                     && !text.contains("timeout")
                 {
                     push_finding(
-                        findings, source, lang, "GR002-MISSING-TIMEOUT-PY", "guardrails-ast",
+                        findings, source, lang, "GR002-MISSING-TIMEOUT-PY", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         format!("`{callee}()` called without `timeout=` (can hang indefinitely)."),
                         None,
@@ -1044,7 +1044,7 @@ fn inspect_guardrails_node(
                 }
                 if matches!(callee, "httpx.post" | "httpx.get" | "httpx.put") && !text.contains("timeout") {
                     push_finding(
-                        findings, source, lang, "GR002-MISSING-TIMEOUT-HTTPX", "guardrails-ast",
+                        findings, source, lang, "GR002-MISSING-TIMEOUT-HTTPX", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         format!("`{callee}()` called without explicit `timeout=`."),
                         None,
@@ -1056,7 +1056,7 @@ fn inspect_guardrails_node(
                 // GR002 Python stdlib socket.socket() & HTTPServer / ThreadingHTTPServer
                 if (callee == "socket.socket" || callee == "socket") && !ctx.has_timeout_in_file {
                     push_finding(
-                        findings, source, lang, "GR002-MISSING-TIMEOUT-PY-SOCKET", "guardrails-ast",
+                        findings, source, lang, "GR002-MISSING-TIMEOUT-PY-SOCKET", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         "`socket.socket()` created without `.settimeout(...)` — blocking recv/connect can hang forever.".into(),
                         None,
@@ -1068,7 +1068,7 @@ fn inspect_guardrails_node(
                     && !ctx.has_http_timeout_in_file
                 {
                     push_finding(
-                        findings, source, lang, "GR002-MISSING-TIMEOUT-PY-HTTPSERVER", "guardrails-ast",
+                        findings, source, lang, "GR002-MISSING-TIMEOUT-PY-HTTPSERVER", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         "`HTTPServer`/`ThreadingHTTPServer` created without `.timeout` / `daemon_threads = True`.".into(),
                         None,
@@ -1084,7 +1084,7 @@ fn inspect_guardrails_node(
                         && !ctx.has_atomic_replace_in_file
                     {
                         push_finding(
-                            findings, source, lang, "GR004-NON-ATOMIC-WRITE-PY", "guardrails-ast",
+                            findings, source, lang, "GR004-NON-ATOMIC-WRITE-PY", "gardawg-ast",
                             Severity::Warning, "high", file_label, line, col, snippet.clone(),
                             "Direct `open(..., \"w\")` overwrite of JSON/state file risks corruption on crash.".into(),
                             None,
@@ -1097,7 +1097,7 @@ fn inspect_guardrails_node(
                 // GR003 idempotency
                 if callee == "requests.post" && missing_idempotency_nearby(source, node.start_byte()) {
                     push_finding(
-                        findings, source, lang, "GR003-IDEMPOTENCY-PY", "guardrails-ast",
+                        findings, source, lang, "GR003-IDEMPOTENCY-PY", "gardawg-ast",
                         Severity::Warning, "medium", file_label, line, col, snippet.clone(),
                         "POST request missing visible idempotency key header.".into(),
                         None,
@@ -1109,7 +1109,7 @@ fn inspect_guardrails_node(
                 // GR006 security
                 if callee == "eval" {
                     push_finding(
-                        findings, source, lang, "GR006-UNSAFE-EVAL-PY", "guardrails-ast",
+                        findings, source, lang, "GR006-UNSAFE-EVAL-PY", "gardawg-ast",
                         Severity::Error, "critical", file_label, line, col, snippet.clone(),
                         "Dynamic `eval()` risks arbitrary code execution.".into(),
                         None,
@@ -1118,7 +1118,7 @@ fn inspect_guardrails_node(
                     );
                 } else if callee == "exec" {
                     push_finding(
-                        findings, source, lang, "GR006-UNSAFE-EXEC-PY", "guardrails-ast",
+                        findings, source, lang, "GR006-UNSAFE-EXEC-PY", "gardawg-ast",
                         Severity::Error, "critical", file_label, line, col, snippet.clone(),
                         "Dynamic `exec()` risks arbitrary code execution.".into(),
                         None,
@@ -1134,7 +1134,7 @@ fn inspect_guardrails_node(
                         "GR006-SHELL-INJECTION-PY"
                     };
                     push_finding(
-                        findings, source, lang, rule_id, "guardrails-ast",
+                        findings, source, lang, rule_id, "gardawg-ast",
                         Severity::Error, "critical", file_label, line, col, snippet,
                         format!("`{callee}(..., shell=True)` risks command injection."),
                         None,
@@ -1151,7 +1151,7 @@ fn inspect_guardrails_node(
             // GR001: multiplication on money identifier
             if kind == "binary_expression" && text.contains('*') && is_money_name(text) {
                 push_finding(
-                    findings, source, lang, &format!("GR001-FLOAT-MONEY-{sfx}"), "guardrails-ast",
+                    findings, source, lang, &format!("GR001-FLOAT-MONEY-{sfx}"), "gardawg-ast",
                     Severity::Warning, "medium", file_label, line, col, snippet.clone(),
                     "Floating-point multiplication on monetary/quantity identifier.".into(),
                     None,
@@ -1170,7 +1170,7 @@ fn inspect_guardrails_node(
                 let inner = body_txt.trim_start_matches('{').trim_end_matches('}').trim();
                 if inner.is_empty() {
                     push_finding(
-                        findings, source, lang, &format!("GR004-SWALLOWED-ERR-{sfx}"), "guardrails-ast",
+                        findings, source, lang, &format!("GR004-SWALLOWED-ERR-{sfx}"), "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         "Empty `catch` block silently swallows exception.".into(),
                         None,
@@ -1183,7 +1183,7 @@ fn inspect_guardrails_node(
             // GR005: throw new Error("not implemented")
             if kind == "throw_statement" && text.to_ascii_lowercase().contains("not implemented") {
                 push_finding(
-                    findings, source, lang, &format!("GR005-AI-STUB-{sfx}"), "guardrails-ast",
+                    findings, source, lang, &format!("GR005-AI-STUB-{sfx}"), "gardawg-ast",
                     Severity::Error, "critical", file_label, line, col, snippet.clone(),
                     "Placeholder `Error(\"not implemented\")` left in code.".into(),
                     None,
@@ -1200,7 +1200,7 @@ fn inspect_guardrails_node(
                     .unwrap_or("");
                 if ctor == "Function" {
                     push_finding(
-                        findings, source, lang, &format!("GR006-UNSAFE-FUNC-{sfx}"), "guardrails-ast",
+                        findings, source, lang, &format!("GR006-UNSAFE-FUNC-{sfx}"), "gardawg-ast",
                         Severity::Error, "critical", file_label, line, col, snippet.clone(),
                         "`new Function()` compiles arbitrary strings as executable code.".into(),
                         None,
@@ -1217,7 +1217,7 @@ fn inspect_guardrails_node(
                     .unwrap_or("");
                 if callee == "fetch" && !text.contains("signal") && !text.contains("timeout") {
                     push_finding(
-                        findings, source, lang, &format!("GR002-MISSING-TIMEOUT-{sfx}"), "guardrails-ast",
+                        findings, source, lang, &format!("GR002-MISSING-TIMEOUT-{sfx}"), "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         "`fetch()` called without an `AbortSignal` / timeout.".into(),
                         None,
@@ -1227,7 +1227,7 @@ fn inspect_guardrails_node(
                 }
                 if callee.starts_with("axios.") && !text.contains("timeout") {
                     push_finding(
-                        findings, source, lang, &format!("GR002-MISSING-TIMEOUT-AXIOS-{sfx}"), "guardrails-ast",
+                        findings, source, lang, &format!("GR002-MISSING-TIMEOUT-AXIOS-{sfx}"), "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         format!("`{callee}()` called without explicit `timeout`."),
                         None,
@@ -1240,7 +1240,7 @@ fn inspect_guardrails_node(
                     && missing_idempotency_nearby(source, node.start_byte())
                 {
                     push_finding(
-                        findings, source, lang, &format!("GR003-IDEMPOTENCY-{sfx}"), "guardrails-ast",
+                        findings, source, lang, &format!("GR003-IDEMPOTENCY-{sfx}"), "gardawg-ast",
                         Severity::Warning, "medium", file_label, line, col, snippet.clone(),
                         "POST request missing visible idempotency key header.".into(),
                         None,
@@ -1250,7 +1250,7 @@ fn inspect_guardrails_node(
                 }
                 if callee == "eval" {
                     push_finding(
-                        findings, source, lang, &format!("GR006-UNSAFE-EVAL-{sfx}"), "guardrails-ast",
+                        findings, source, lang, &format!("GR006-UNSAFE-EVAL-{sfx}"), "gardawg-ast",
                         Severity::Error, "critical", file_label, line, col, snippet,
                         "Dynamic `eval()` execution enables code injection.".into(),
                         None,
@@ -1272,7 +1272,7 @@ fn inspect_guardrails_node(
                 // GR002: Blocking recv/read/connect without socket timeouts / select / poll
                 if matches!(base_name, "recv" | "recvfrom" | "connect") && !ctx.has_c_socket_timeout_in_file {
                     push_finding(
-                        findings, source, lang, "GR002-MISSING-TIMEOUT-CPP", "guardrails-ast",
+                        findings, source, lang, "GR002-MISSING-TIMEOUT-CPP", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         format!("Blocking `{base_name}()` call without `SO_RCVTIMEO`/`SO_SNDTIMEO` or `select`/`poll` timeout."),
                         None,
@@ -1292,7 +1292,7 @@ fn inspect_guardrails_node(
                         .unwrap_or(false);
                     if is_bare_stmt {
                         push_finding(
-                            findings, source, lang, "GR004-IGNORED-RETURN-CPP", "guardrails-ast",
+                            findings, source, lang, "GR004-IGNORED-RETURN-CPP", "gardawg-ast",
                             Severity::Warning, "high", file_label, line, col, snippet.clone(),
                             format!("Return value of `{base_name}()` is silently ignored."),
                             None,
@@ -1305,7 +1305,7 @@ fn inspect_guardrails_node(
                 // GR006: Unsafe unbounded buffer/command calls
                 if matches!(base_name, "strcpy" | "strcat" | "sprintf" | "gets" | "system" | "popen") {
                     push_finding(
-                        findings, source, lang, "GR006-UNSAFE-C-CALL", "guardrails-ast",
+                        findings, source, lang, "GR006-UNSAFE-C-CALL", "gardawg-ast",
                         Severity::Error, "critical", file_label, line, col, snippet.clone(),
                         format!("Unsafe unbounded C call `{base_name}()` risks buffer overflow or command injection."),
                         None,
@@ -1317,7 +1317,7 @@ fn inspect_guardrails_node(
                 // GR007: assert() in non-test paths or unchecked malloc/calloc/realloc
                 if base_name == "assert" && !is_test_or_example_path(file_label) {
                     push_finding(
-                        findings, source, lang, "GR007-ASSERT-IN-PROD-CPP", "guardrails-ast",
+                        findings, source, lang, "GR007-ASSERT-IN-PROD-CPP", "gardawg-ast",
                         Severity::Warning, "medium", file_label, line, col, snippet.clone(),
                         "`assert()` in non-test C/C++ code aborts the process in debug builds and vanishes under `-DNDEBUG`.".into(),
                         None,
@@ -1330,7 +1330,7 @@ fn inspect_guardrails_node(
                     let after = &source[node.end_byte()..window_end];
                     if !after.contains("NULL") && !after.contains("nullptr") && !after.contains("if (!") && !after.contains("if(!") {
                         push_finding(
-                            findings, source, lang, "GR007-UNCHECKED-ALLOC-CPP", "guardrails-ast",
+                            findings, source, lang, "GR007-UNCHECKED-ALLOC-CPP", "gardawg-ast",
                             Severity::Warning, "high", file_label, line, col, snippet,
                             format!("Allocation `{base_name}()` has no visible NULL check."),
                             None,
@@ -1865,7 +1865,7 @@ with open("state.json", "w") as f:
     }
 
     #[test]
-    fn cpp_and_js_guardrails_parity() {
+    fn cpp_and_js_gardawg_parity() {
         let c_src = r#"
 #include <stdio.h>
 #include <stdlib.h>
@@ -1904,7 +1904,7 @@ async function go(u, x) {
     #[test]
     fn inline_ignore_and_scoped_rule_ignore_work() {
         let src = r#"
-fn a() -> usize { "1".parse::<usize>().unwrap() } // guardrails-ignore(GR007-PANIC-UNWRAP-RUST)
+fn a() -> usize { "1".parse::<usize>().unwrap() } // gardawg-ignore(GR007-PANIC-UNWRAP-RUST)
 fn b() -> usize { "2".parse::<usize>().unwrap() }
 "#;
         let findings = analyze_source(src, Lang::Rust, "src/lib.rs", None, 1.0, false).unwrap();

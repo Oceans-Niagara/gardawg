@@ -1,4 +1,4 @@
-﻿use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use clap::{Parser, Subcommand};
 use ed25519_dalek::{Signer, SigningKey};
 use rand::rngs::OsRng;
@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Parser)]
-#[command(name = "guardrails-keygen", about = "Dev-only offline Ed25519 license minter")]
+#[command(name = "gardawg-keygen", about = "Dev-only offline Ed25519 license minter")]
 struct Cli {
     #[command(subcommand)]
     command: Cmd,

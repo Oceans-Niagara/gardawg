@@ -1,4 +1,4 @@
-﻿use crate::physics::PayloadCheckRule;
+use crate::physics::PayloadCheckRule;
 use ignore::WalkBuilder;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -37,7 +37,7 @@ impl Profile {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
-pub struct GuardrailsConfig {
+pub struct GardawgConfig {
     pub project: ProjectConfig,
     pub ast: AstConfig,
     pub gate: GateConfig,
@@ -188,11 +188,11 @@ impl Default for SyncConfig {
     }
 }
 
-impl GuardrailsConfig {
+impl GardawgConfig {
     pub fn load(workspace: &Path, override_path: Option<&Path>) -> anyhow::Result<Self> {
         let candidate = match override_path {
             Some(p) => p.to_path_buf(),
-            None => workspace.join("guardrails.toml"),
+            None => workspace.join("gardawg.toml"),
         };
 
         if !candidate.exists() {
@@ -447,8 +447,8 @@ opencode_json = true
 }
 
 pub fn render_starter_profiles_toml() -> &'static str {
-    r#"# Custom physical-layer RF / serial link profiles for Guardrails Pro & Team
-# Usage: guardrails --profiles profiles.toml check --profile custom-mesh
+    r#"# Custom physical-layer RF / serial link profiles for Gardawg Pro & Team
+# Usage: gardawg --profiles profiles.toml check --profile custom-mesh
 # All 11 [[profile]] fields are shown below:
 
 [[profile]]
@@ -467,7 +467,7 @@ notes = "Custom 915MHz tactical mesh profile"
 }
 
 pub fn render_starter_budgets_toml() -> &'static str {
-    r#"# Standalone physical-layer link budget policy (optional when using [link] in guardrails.toml)
+    r#"# Standalone physical-layer link budget policy (optional when using [link] in gardawg.toml)
 profile = "lora-sf12"
 assumed_hz = 1.0
 fail_on = "high"

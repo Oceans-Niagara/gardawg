@@ -1,4 +1,4 @@
-﻿#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(target_arch = "wasm32"))]
 use crate::license::require_pro;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -200,7 +200,7 @@ pub fn resolve_profile(id: &str, custom_path: Option<&Path>) -> Result<LinkProfi
     all_profiles(custom_path)?
         .into_iter()
         .find(|p| p.id == id)
-        .ok_or_else(|| format!("Unknown profile '{id}'. Run `guardrails profiles` to list options."))
+        .ok_or_else(|| format!("Unknown profile '{id}'. Run `gardawg profiles` to list options."))
 }
 
 pub fn shannon_capacity_bps(bandwidth_hz: f64, snr_db: f64) -> f64 {

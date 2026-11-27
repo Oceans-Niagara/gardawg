@@ -1,4 +1,4 @@
-﻿use crate::chaos::{
+use crate::chaos::{
     normalize_upstream, serve_http_chaos_proxy_with_stats, ChaosConfig, ChaosStats, ChaosSummary,
 };
 use crate::physics::resolve_profile;
@@ -134,9 +134,9 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
         .stderr(Stdio::piped());
 
     if let Some(ref paddr) = proxy_addr_str {
-        cmd.env("GUARDRAILS_PROXY_ADDR", paddr)
+        cmd.env("GARDAWG_PROXY_ADDR", paddr)
             .env("LINKGUARD_PROXY_ADDR", paddr)
-            .env("GUARDRAILS_PROXY_URL", format!("http://{paddr}"));
+            .env("GARDAWG_PROXY_URL", format!("http://{paddr}"));
     }
 
     let child = cmd.spawn()?;

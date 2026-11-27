@@ -1,4 +1,4 @@
-﻿use bytes::Bytes;
+use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
@@ -105,7 +105,7 @@ pub async fn start_http_chaos_proxy(listen: SocketAddr, mut cfg: ChaosConfig) ->
     let listener = TcpListener::bind(listen).await?;
     let stats = Arc::new(ChaosStats::default());
     eprintln!(
-        "[guardrails http chaos] {} -> {} (seed={}). Press Ctrl-C to stop.",
+        "[gardawg http chaos] {} -> {} (seed={}). Press Ctrl-C to stop.",
         listen, cfg.upstream, cfg.seed
     );
     let summary = serve_http_chaos_proxy_until_ctrl_c(listener, cfg, stats).await?;
@@ -266,7 +266,7 @@ pub async fn start_tcp_chaos_proxy(listen: SocketAddr, mut cfg: ChaosConfig) -> 
     let listener = TcpListener::bind(listen).await?;
     let stats = Arc::new(ChaosStats::default());
     eprintln!(
-        "[guardrails tcp chaos] {} -> {} (seed={}). Press Ctrl-C to stop.",
+        "[gardawg tcp chaos] {} -> {} (seed={}). Press Ctrl-C to stop.",
         listen, cfg.upstream, cfg.seed
     );
 

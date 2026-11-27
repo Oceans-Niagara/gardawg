@@ -1,4 +1,4 @@
-﻿use crate::physics::PayloadBudgetReport;
+use crate::physics::PayloadBudgetReport;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
@@ -95,7 +95,7 @@ pub fn to_sarif(findings: &[Finding], failed_payloads: &[&PayloadCheckResult], c
                 "defaultConfiguration": { "level": level },
                 "properties": {
                     "tool": f.tool,
-                    "tags": ["guardrails", &f.tool, level]
+                    "tags": ["gardawg", &f.tool, level]
                 }
             })
         });
@@ -136,12 +136,12 @@ pub fn to_sarif(findings: &[Finding], failed_payloads: &[&PayloadCheckResult], c
                 "shortDescription": { "text": "Configured payload_checks budget exceeded physical channel MTU or goodput" },
                 "fullDescription": { "text": "Reduce payload bytes, lower transmit Hz, or batch frames to fit channel limits." },
                 "defaultConfiguration": { "level": "error" },
-                "properties": { "tags": ["guardrails", "physical-layer", "budget"] }
+                "properties": { "tags": ["gardawg", "physical-layer", "budget"] }
             })
         });
         let uri = config_path
             .map(|p| normalize_sarif_uri(&p.display().to_string()))
-            .unwrap_or_else(|| "guardrails.toml".to_string());
+            .unwrap_or_else(|| "gardawg.toml".to_string());
 
         for p in failed_payloads {
             results.push(json!({
@@ -170,7 +170,7 @@ pub fn to_sarif(findings: &[Finding], failed_payloads: &[&PayloadCheckResult], c
         "runs": [{
             "tool": {
                 "driver": {
-                    "name": "guardrails",
+                    "name": "gardawg",
                     "version": env!("CARGO_PKG_VERSION"),
                     "rules": rules
                 }

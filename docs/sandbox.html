@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Guardrails Physics Sandbox — Deterministic RF &amp; Framing Bench</title>
+  <title>Gardawg Physics Sandbox — Deterministic RF &amp; Framing Bench</title>
   <link rel="stylesheet" href="./sandbox.css?v=1" />
 </head>
 <body>
@@ -33,7 +33,7 @@
         </div>
 
         <p class="play-explainer">
-          <strong>How it works:</strong> Your payload’s exact UTF-8 byte size is evaluated inside Guardrails’s compiled Rust WebAssembly physics engine. It splits the message into link MTU fragments, adds MAC/framing header bytes per chunk, compares offered wire bps against both realistic protocol goodput and the Shannon–Hartley ceiling, and estimates post-FEC BER packet loss.
+          <strong>How it works:</strong> Your payload’s exact UTF-8 byte size is evaluated inside Gardawg’s compiled Rust WebAssembly physics engine. It splits the message into link MTU fragments, adds MAC/framing header bytes per chunk, compares offered wire bps against both realistic protocol goodput and the Shannon–Hartley ceiling, and estimates post-FEC BER packet loss.
           <span class="play-caveat">Note: Quick Play uses built-in link profiles. Switch to <strong>Simple View</strong> or <strong>Link Bench</strong> to simulate packed binary encoding, tune custom RF/SNR/MTU sliders, sweep frequency &amp; SNR curves, and pin snapshots.</span>
         </p>
       </div>
@@ -103,7 +103,7 @@
         <div class="sidebar-section">
           <h2>Link Physics</h2>
           <div class="radio-stack">
-            <label class="radio-row" title="Uses Guardrails's built-in LoRa, BLE, Wi-Fi, LEO Sat, or UART profile.">
+            <label class="radio-row" title="Uses Gardawg's built-in LoRa, BLE, Wi-Fi, LEO Sat, or UART profile.">
               <input type="radio" name="link-mode" value="builtin" checked />
               <span>Built-in Physical Profile</span>
             </label>
@@ -160,10 +160,10 @@
       <header class="page-header">
         <div class="page-header-row">
           <div>
-            <h1>Guardrails Physics Sandbox</h1>
+            <h1>Gardawg Physics Sandbox</h1>
             <p class="subtitle">Add your data, pick a connection, and see if your messages will survive the trip—right in your browser.</p>
           </div>
-          <a class="back-link" href="./">← Guardrails</a>
+          <a class="back-link" href="./">← Gardawg</a>
         </div>
       </header>
 

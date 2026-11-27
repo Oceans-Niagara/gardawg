@@ -1,4 +1,4 @@
-﻿use crate::license::{current_unix_secs, require_pro};
+use crate::license::{current_unix_secs, require_pro};
 use crate::physics::{shannon_capacity_bps, LinkProfile};
 use crate::proxy::{
     run_proxy_live, spawn_metrics_sampler, LinkShaper, PacketDecision, ProxyMetrics, ProxyTransport,
@@ -98,7 +98,7 @@ pub fn run_dashboard(
     };
 
     eframe::run_native(
-        "Guardrails Pro Dashboard",
+        "Gardawg Pro Dashboard",
         options,
         Box::new(|_cc| Ok(Box::new(app))),
     )
@@ -136,7 +136,7 @@ impl eframe::App for DashboardApp {
 
         egui::TopBottomPanel::top("top_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.heading("Guardrails Pro Dashboard");
+                ui.heading("Gardawg Pro Dashboard");
                 ui.separator();
                 ui.label(format!("Profile: {}", self.profile.id));
                 ui.separator();
@@ -282,7 +282,7 @@ impl eframe::App for DashboardApp {
 
 fn export_csv(samples: &[ProxyMetrics]) -> Result<String, String> {
     require_pro("Replay Capture Export")?;
-    let path = format!("guardrails_capture_{}.csv", current_unix_secs());
+    let path = format!("gardawg_capture_{}.csv", current_unix_secs());
     let mut out = String::from(
         "timestamp_s,profile_id,offered_load_bps,delivered_goodput_bps,effective_goodput_bps,shannon_ceiling_bps,queued_bytes,queue_capacity_bytes,packets_in,packets_forwarded,queue_drops,ber_drops,bytes_in,bytes_forwarded,fragments\n",
     );
@@ -301,7 +301,7 @@ fn export_csv(samples: &[ProxyMetrics]) -> Result<String, String> {
 
 fn export_json(profile: &LinkProfile, samples: &[ProxyMetrics]) -> Result<String, String> {
     require_pro("Replay Capture Export")?;
-    let path = format!("guardrails_capture_{}.json", current_unix_secs());
+    let path = format!("gardawg_capture_{}.json", current_unix_secs());
     let payload = serde_json::json!({
         "exported_unix": current_unix_secs(),
         "profile": profile,

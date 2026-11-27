@@ -1,8 +1,8 @@
-﻿[package]
-name = "guardrails"
+[package]
+name = "gardawg"
 version = "0.4.0"
 edition = "2021"
-default-run = "guardrails"
+default-run = "gardawg"
 description = "Unified deterministic AI code guardrails, physical-layer link analyzer & chaos/impairment proxy"
 homepage = "https://oceansniagara.com"
 license = "LicenseRef-Proprietary"
@@ -42,11 +42,11 @@ dev-keygen = []
 gui = ["dep:eframe", "dep:egui_plot"]
 
 [[bin]]
-name = "guardrails"
+name = "gardawg"
 path = "src/main.rs"
 
 [[bin]]
-name = "guardrails-keygen"
+name = "gardawg-keygen"
 path = "src/bin/keygen.rs"
 required-features = ["dev-keygen"]
 

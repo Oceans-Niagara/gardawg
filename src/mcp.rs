@@ -1,6 +1,6 @@
-﻿use crate::analyzer::{scan_workspace, ScanOptions};
+use crate::analyzer::{scan_workspace, ScanOptions};
 use crate::budgets::evaluate_payload_checks;
-use crate::config::GuardrailsConfig;
+use crate::config::GardawgConfig;
 use crate::gate::run_unified_gate;
 use crate::physics::{all_profiles, builtin_profiles, evaluate_payload, resolve_profile};
 use crate::sarif::CheckReport;
@@ -42,7 +42,7 @@ pub async fn run_mcp_stdio(workspace: PathBuf, custom_profiles: Option<PathBuf>)
             "initialize" => Ok(json!({
                 "protocolVersion": "2024-11-05",
                 "capabilities": { "tools": {} },
-                "serverInfo": { "name": "guardrails", "version": env!("CARGO_PKG_VERSION") }
+                "serverInfo": { "name": "gardawg", "version": env!("CARGO_PKG_VERSION") }
             })),
             "notifications/initialized" => continue,
             "tools/list" => Ok(json!({
@@ -66,7 +66,7 @@ pub async fn run_mcp_stdio(workspace: PathBuf, custom_profiles: Option<PathBuf>)
                         }
                     },
                     {
-                        "name": "guardrails_check",
+                        "name": "gardawg_check",
                         "description": "Step 2 (Check every edit): Run unified single-pass AST + physical-layer link rules + external compiler/linter gate.",
                         "inputSchema": {
                             "type": "object",
@@ -154,12 +154,12 @@ async fn handle_tool_call(
             }
         }
 
-        "guardrails_check" => {
+        "gardawg_check" => {
             let target = args["path"]
                 .as_str()
                 .map(|p| workspace.join(p))
                 .unwrap_or_else(|| workspace.clone());
-            let cfg = GuardrailsConfig::load(workspace, None).unwrap_or_default();
+            let cfg = GardawgConfig::load(workspace, None).unwrap_or_default();
             let pedantic = args["pedantic"].as_bool().unwrap_or(false);
             let ast_only = args["ast_only"].as_bool().unwrap_or(false);
             let hz = args["hz"].as_f64().unwrap_or(cfg.link.assumed_hz);
@@ -248,7 +248,7 @@ async fn handle_tool_call(
                     "content": [{ "type": "text", "text": "Provide a non-empty 'command' string." }]
                 }));
             }
-            let cfg = GuardrailsConfig::load(workspace, None).unwrap_or_default();
+            let cfg = GardawgConfig::load(workspace, None).unwrap_or_default();
             let opts = VerifyOptions {
                 command: cmd,
                 profile: args["profile"].as_str().map(|s| s.to_string()),

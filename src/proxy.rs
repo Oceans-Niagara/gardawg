@@ -1,4 +1,4 @@
-﻿use crate::physics::{estimate_ber_from_snr, shannon_capacity_bps, LinkProfile};
+use crate::physics::{estimate_ber_from_snr, shannon_capacity_bps, LinkProfile};
 use rand::Rng;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
@@ -339,12 +339,12 @@ async fn run_tcp_proxy(
     {
         let st = shaper.state.lock().await;
         eprintln!(
-            "[guardrails tcp proxy] {} -> {} | profile={} ({:.0} bps, MTU={} B, seed={})",
+            "[gardawg tcp proxy] {} -> {} | profile={} ({:.0} bps, MTU={} B, seed={})",
             listen_addr, target_addr, st.profile.id, st.profile.effective_goodput_bps,
             st.profile.max_payload_bytes, shaper.seed
         );
     }
-    eprintln!("[guardrails tcp proxy] Press Ctrl-C to stop and print deterministic JSON summary.");
+    eprintln!("[gardawg tcp proxy] Press Ctrl-C to stop and print deterministic JSON summary.");
 
     let target_owned = target_addr.to_string();
     loop {
@@ -356,12 +356,12 @@ async fn run_tcp_proxy(
             }
             accepted = listener.accept() => {
                 let (client, peer) = accepted.map_err(|e| e.to_string())?;
-                eprintln!("[guardrails tcp proxy] accepted connection from {peer}");
+                eprintln!("[gardawg tcp proxy] accepted connection from {peer}");
                 let tgt = target_owned.clone();
                 let shaper_conn = Arc::clone(&shaper);
                 tokio::spawn(async move {
                     if let Err(e) = handle_tcp_connection(client, &tgt, shaper_conn).await {
-                        eprintln!("[guardrails tcp proxy] connection error: {e}");
+                        eprintln!("[gardawg tcp proxy] connection error: {e}");
                     }
                 });
             }
@@ -501,12 +501,12 @@ async fn run_udp_proxy(
     {
         let st = shaper.state.lock().await;
         eprintln!(
-            "[guardrails udp proxy] {} -> {} | profile={} ({:.0} bps, MTU={} B, seed={})",
+            "[gardawg udp proxy] {} -> {} | profile={} ({:.0} bps, MTU={} B, seed={})",
             listen_addr, target_addr, st.profile.id, st.profile.effective_goodput_bps,
             st.profile.max_payload_bytes, shaper.seed
         );
     }
-    eprintln!("[guardrails udp proxy] Press Ctrl-C to stop and print deterministic JSON summary.");
+    eprintln!("[gardawg udp proxy] Press Ctrl-C to stop and print deterministic JSON summary.");
 
     let tgt = target_addr.to_string();
     tokio::select! {

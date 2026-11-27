@@ -70,8 +70,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp "target/${{ matrix.target }}/release/guardrails${{ matrix.ext }}" \
-             "dist/guardrails${{ matrix.tag }}-${{ matrix.suffix }}${{ matrix.ext }}"
+          cp "target/${{ matrix.target }}/release/gardawg${{ matrix.ext }}" \
+             "dist/gardawg${{ matrix.tag }}-${{ matrix.suffix }}${{ matrix.ext }}"
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2

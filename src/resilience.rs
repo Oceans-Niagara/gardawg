@@ -1,4 +1,4 @@
-﻿use crate::chaos::{serve_http_chaos_proxy, ChaosConfig};
+use crate::chaos::{serve_http_chaos_proxy, ChaosConfig};
 use std::path::Path;
 use tokio::net::TcpListener;
 use tokio::process::Command;
@@ -53,7 +53,7 @@ pub async fn run_resilience_suite(workspace: &Path, opts: ResilienceOptions) -> 
     if let Some(app_cmd) = &opts.keploy_cmd {
         let status = Command::new("keploy")
             .args(["test", "-c", app_cmd, "--delay", "5"])
-            .env("GUARDRAILS_PROXY_URL", &proxy_url)
+            .env("GARDAWG_PROXY_URL", &proxy_url)
             .current_dir(workspace)
             .status()
             .await?;
