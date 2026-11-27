@@ -2,7 +2,7 @@
 
 **Deterministic AI-code guardrails, physical-layer link analysis, and chaos testing in one offline-first binary.**
 
-Gardawg is an offline-first Rust CLI and MCP server by [Oceans Niagara, LLC](https://oceansniagara.com). It enforces deterministic AST rules and quality gates on your code, checks payloads against real physical-layer limits (LoRa, BLE, Wi-Fi, LEO satellite, UART), and runs seeded chaos/impairment proxies, all with zero LLM dependencies and zero code leaving your machine.
+Gardawg is an offline-first Rust CLI and MCP server by [Oceans Niagara, LLC](https://oceansniagara.com). It enforces deterministic AST rules and quality gates on your code, checks payloads against real physical-layer limits (LoRa, BLE, Wi-Fi, LEO satellite, UART), and runs seeded chaos/impairment proxies, all with zero LLM dependencies and zero code leaving your machine. AST rules cover Python, Rust, TypeScript, JavaScript, C and C++ (including Arduino `.ino`).
 
 - **Website, WASM sandbox & licensing:** https://oceans-niagara.github.io/gardawg/
 - **Interactive sandbox:** https://oceans-niagara.github.io/gardawg/sandbox.html

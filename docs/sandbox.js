@@ -726,7 +726,7 @@ $("download-csv-btn").addEventListener("click", () => {
   ).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([hdr + rows], { type: "text/csv" }));
-  a.download = "gardawg_snapshots.csv";
+  a.download = "linkguard_snapshots.csv";
   a.click();
 });
 
@@ -753,9 +753,9 @@ $("copy-snr-csv").addEventListener("click", async () => {
 });
 
 for (const [btnId, canvasId, fname] of [
-  ["save-frame-png", "bench-frame-canvas", "gardawg_frame.png"],
-  ["save-sweep-png", "plot-sweep-canvas", "gardawg_sweep.png"],
-  ["save-snr-png", "plot-snr-canvas", "gardawg_snr_waterfall.png"],
+  ["save-frame-png", "bench-frame-canvas", "linkguard_frame.png"],
+  ["save-sweep-png", "plot-sweep-canvas", "linkguard_sweep.png"],
+  ["save-snr-png", "plot-snr-canvas", "linkguard_snr_waterfall.png"],
 ]) {
   $(btnId).addEventListener("click", () => {
     const a = document.createElement("a");

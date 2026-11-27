@@ -13,7 +13,7 @@
       <a href="/" style="font-size: 0.9rem; opacity: 0.65; text-decoration: none; color: inherit;">Oceans Niagara, LLC</a>
       <nav>
         <a href="#quickstart">Quickstart</a>
-        <a href="./sandbox.html">WASM Sandbox</a>
+        <a href="./sandbox.html">LinkGuard Sandbox</a>
         <a href="#pricing">Pricing</a>
         <a href="https://github.com/oceans-niagara/gardawg">GitHub</a>
       </nav>
@@ -42,14 +42,38 @@
         <strong>Catch fragile code, regressions, and transport bottlenecks before they ship.</strong> Gardawg runs fast, deterministic checks locally, in CI, or inside your AI coding tools via MCP — zero LLM dependency, zero code leaving your machine.
       </p>
       <p>
-        One offline-first Rust binary: local <code>tree-sitter</code> AST rules (Python, Rust, C/C++, TS/JS), configurable quality gates (<code>gardawg.toml</code>), SARIF reporting, a physical-layer link analyzer (LoRa, BLE, congested Wi-Fi, LEO satellite, UART), and a seeded chaos/impairment proxy for resilience testing.
+        One offline-first Rust binary: local <code>tree-sitter</code> AST rules (Python, Rust, TypeScript, JavaScript, C and C++, including Arduino <code>.ino</code>), configurable quality gates (<code>gardawg.toml</code>), SARIF reporting, a physical-layer link analyzer (LoRa, BLE, congested Wi-Fi, LEO satellite, UART), and a seeded chaos/impairment proxy for resilience testing.
       </p>
 
       <div class="actions">
         <a class="btn btn-solid" href="#quickstart">Install &amp; Quickstart</a>
-        <a class="btn" href="./sandbox.html">Open WASM Sandbox</a>
+        <a class="btn" href="./sandbox.html">Try the LinkGuard sandbox</a>
         <a class="btn" href="#pricing">Pro &amp; Team Keys</a>
         <a class="btn" href="https://github.com/oceans-niagara/gardawg/releases/latest">Download Binaries</a>
+      </div>
+    </section>
+
+    <section id="inside">
+      <h2>What&rsquo;s inside</h2>
+      <div class="tier-grid">
+        <div class="tier">
+          <div>
+            <h3>Code guardrails</h3>
+            <p>Deterministic tree-sitter rules for Python, Rust, TypeScript, JavaScript, C and C++ (including Arduino <code>.ino</code>): swallowed errors, missing timeouts, stubs, hardcoded secrets, and more. Gate it in CI with SARIF, or call it from your AI tools over MCP.</p>
+          </div>
+        </div>
+        <div class="tier">
+          <div>
+            <h3>LinkGuard link analysis</h3>
+            <p>Check payload sizes, send rates, and framing overhead against real physical-layer limits: LoRa, BLE, Wi-Fi, LEO satellite, UART. Try it in your browser with the <a href="./sandbox.html">LinkGuard sandbox</a>, or run <code>gardawg budget</code> locally.</p>
+          </div>
+        </div>
+        <div class="tier">
+          <div>
+            <h3>Chaos &amp; resilience</h3>
+            <p>Seeded, reproducible TCP, UDP, and HTTP impairment proxies show how your code behaves on bad links. Pro adds automated API fault injection with <code>gardawg resilience</code>.</p>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -86,7 +110,7 @@ gardawg mcp</pre>
               <li>Local AST rules &amp; quality gates</li>
               <li><code>gardawg.toml</code>, SARIF &amp; seeded proxy</li>
               <li>Built-in RF &amp; serial profiles</li>
-              <li>Browser WASM sandbox</li>
+              <li>LinkGuard browser sandbox</li>
             </ul>
           </div>
           <a class="btn" href="./sandbox.html" style="text-align:center;">Try Sandbox</a>
