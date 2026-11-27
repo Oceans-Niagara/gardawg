@@ -158,19 +158,19 @@ async function sendLicenseEmail(
       from: env.FROM_EMAIL,
       reply_to: env.SUPPORT_EMAIL,
       to: [toEmail],
-      subject: `Your LinkGuard ${tier.toUpperCase()} (v0.3) Lifetime Offline License`,
+      subject: `Your Gardawg ${tier.toUpperCase()} Lifetime Offline License`,
       text:
-        `Thanks for purchasing LinkGuard ${tier.toUpperCase()}!\n\n` +
+        `Thanks for purchasing Gardawg ${tier.toUpperCase()}!\n\n` +
         `Your offline Ed25519 license key (v0.3 lifetime):\n\n` +
         `${token}\n\n` +
-        `Download LinkGuard (Windows, macOS, Linux — GUI included):\n` +
-        `  https://github.com/oceans-niagara/linkguard/releases\n\n` +
+        `Download Gardawg (Windows, macOS, Linux — GUI included):\n` +
+        `  https://github.com/oceans-niagara/gardawg/releases/latest\n\n` +
         `How to activate (100% offline, zero network calls):\n` +
-        `  Option A: Save the key above to a file named linkguard.lic in your project folder\n` +
-        `  Option B: Set environment variable LINKGUARD_LICENSE="<key>"\n\n` +
+        `  Option A: Save the key above to a file named gardawg.lic in your project folder\n` +
+        `  Option B: Set environment variable GARDAWG_LICENSE_KEY="<key>"\n\n` +
         `Verify anytime:\n` +
-        `  linkguard license\n` +
-        `  linkguard gui --profile lora-sf12\n\n` +
+        `  gardawg license-check\n` +
+        `  gardawg gui --profile lora-sf12\n\n` +
         `Questions? Reply to ${env.SUPPORT_EMAIL}.\n`,
     }),
   });

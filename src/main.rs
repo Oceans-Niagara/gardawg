@@ -32,7 +32,7 @@ use std::process::ExitCode;
 #[command(
     name = "gardawg",
     version,
-    about = "Unified deterministic AI gardawg, physical-layer analyzer, and chaos/impairment proxy"
+    about = "Unified deterministic AI guardrails, physical-layer analyzer, and chaos/impairment proxy"
 )]
 struct Cli {
     /// Target workspace directory

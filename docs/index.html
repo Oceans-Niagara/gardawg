@@ -67,7 +67,7 @@
 cargo install --git https://github.com/oceans-niagara/gardawg
 gardawg init
 gardawg check --config gardawg.toml --format sarif
-gardawg analyze src/ --profile lora-sf12 --hz 10
+gardawg budget --profile lora-sf12 --bytes 64 --hz 10
 gardawg proxy --listen 127.0.0.1:9000 --target 127.0.0.1:9001 --profile ble-1m --seed 42
 gardawg mcp</pre>
     </section>
@@ -99,7 +99,7 @@ gardawg mcp</pre>
             <ul>
               <li>Everything in Free</li>
               <li>Offline Ed25519 license key (instant email delivery)</li>
-              <li>Full <code>gardawg resilience</code> &amp; chaos testing suite</li>
+              <li><code>gardawg resilience</code>: automated Schemathesis &amp; Keploy fault-injection suite</li>
               <li>Custom <code>profiles.toml</code> &amp; CI baseline ratchet (<code>--baseline</code>)</li>
               <li>Desktop GUI + CSV/JSON capture export</li>
               <li>Commercial &amp; CI pipeline usage</li>

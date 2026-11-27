@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2024-11-01"
 
 [vars]
-FROM_EMAIL = "LinkGuard <connect@oceansniagara.com>"
+FROM_EMAIL = "Gardawg <connect@oceansniagara.com>"
 SUPPORT_EMAIL = "connect@oceansniagara.com"
 PRO_PRICE_ID = "price_1UehoPJhBeJNt7bSAKW0N8tW"
 TEAM_PRICE_ID = "price_1Uehq1JhBeJNt7bSJtLjKVrp"
