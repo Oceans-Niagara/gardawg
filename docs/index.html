@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guardrails — Deterministic AI-Code Guardrails, Link Analyzer &amp; Chaos Proxy</title>
+  <link rel="stylesheet" href="./style.css?v=2" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="brand" href="./">Guardrails</a>
+      <a href="/" style="font-size: 0.9rem; opacity: 0.65; text-decoration: none; color: inherit;">Oceans Niagara, LLC</a>
+      <nav>
+        <a href="#quickstart">Quickstart</a>
+        <a href="./sandbox.html">WASM Sandbox</a>
+        <a href="#pricing">Pricing</a>
+        <a href="https://github.com/oceans-niagara/gardawg">GitHub</a>
+      </nav>
+    </header>
+
+    <!-- Post-Checkout Stripe License Fulfillment -->
+    <section id="claim-box" class="box hidden">
+      <h3 id="claim-status">Verifying Stripe checkout session...</h3>
+      <p id="claim-meta" class="muted" style="margin-bottom:0;"></p>
+      <div id="claim-details" class="hidden">
+        <div id="claim-token" class="token"></div>
+        <div class="actions" style="margin-top:0; margin-bottom:12px;">
+          <button id="copy-btn" type="button" class="btn btn-solid">Copy License Key</button>
+          <button id="dl-btn" type="button" class="btn">Download guardrails.lic</button>
+        </div>
+        <pre id="claim-activate"></pre>
+        <p class="muted" style="margin-top:10px; margin-bottom:0;">
+          A backup copy was also emailed to you. Questions: <a href="mailto:connect@oceansniagara.com">connect@oceansniagara.com</a>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h1>Deterministic guardrails for AI-generated code, CI pipelines, and constrained links.</h1>
+      <p>
+        <strong>Catch fragile code, regressions, and transport bottlenecks before they ship.</strong> Guardrails runs fast, deterministic checks locally, in CI, or inside your AI coding tools via MCP — zero LLM dependency, zero code leaving your machine.
+      </p>
+      <p>
+        One offline-first Rust binary: local <code>tree-sitter</code> AST rules (Python, Rust, C/C++, TS/JS), configurable quality gates (<code>guardrails.toml</code>), SARIF reporting, a physical-layer link analyzer (LoRa, BLE, congested Wi-Fi, LEO satellite, UART), and a seeded chaos/impairment proxy for resilience testing.
+      </p>
+
+      <div class="actions">
+        <a class="btn btn-solid" href="#quickstart">Install &amp; Quickstart</a>
+        <a class="btn" href="./sandbox.html">Open WASM Sandbox</a>
+        <a class="btn" href="#pricing">Pro &amp; Team Keys</a>
+        <a class="btn" href="https://github.com/oceans-niagara/gardawg/releases/latest">Download Binaries</a>
+      </div>
+    </section>
+
+    <section id="quickstart">
+      <h2>Install &amp; Run Locally</h2>
+      <p class="muted" style="margin-bottom:10px;">
+        Download a prebuilt binary from <a href="https://github.com/oceans-niagara/gardawg/releases/latest">GitHub Releases</a> (no Rust toolchain required). Headless builds are best for CI and servers; <code>-gui</code> builds add the desktop GUI.
+      </p>
+      <pre># Prebuilt binaries (Windows / macOS arm64 &amp; x64 / Linux):
+# https://github.com/oceans-niagara/gardawg/releases/latest
+#   Windows: .\guardrails-windows-x86_64.exe init &amp;&amp; .\guardrails-windows-x86_64.exe check
+#   macOS:   chmod +x ./guardrails-macos-arm64 &amp;&amp; ./guardrails-macos-arm64 init &amp;&amp; ./guardrails-macos-arm64 check
+
+# Or build from source:
+cargo install --git https://github.com/oceans-niagara/gardawg
+guardrails init
+guardrails check --config guardrails.toml --format sarif
+guardrails analyze src/ --profile lora-sf12 --hz 10
+guardrails proxy --listen 127.0.0.1:9000 --target 127.0.0.1:9001 --profile ble-1m --seed 42
+guardrails mcp</pre>
+    </section>
+
+    <section id="pricing">
+      <h2>Licensing</h2>
+      <p class="muted">Ed25519-signed offline keys (<code>LG1...</code>) verified locally with zero network calls. Perpetual, one-time purchase.</p>
+
+      <div class="tier-grid">
+        <div class="tier">
+          <div>
+            <h3>Free</h3>
+            <div class="price">$0 <span>Free Forever</span></div>
+            <ul>
+              <li>Core CLI &amp; stdio MCP server</li>
+              <li>Local AST rules &amp; quality gates</li>
+              <li><code>guardrails.toml</code>, SARIF &amp; seeded proxy</li>
+              <li>Built-in RF &amp; serial profiles</li>
+              <li>Browser WASM sandbox</li>
+            </ul>
+          </div>
+          <a class="btn" href="./sandbox.html" style="text-align:center;">Try Sandbox</a>
+        </div>
+
+        <div class="tier tier-pro">
+          <div>
+            <h3>Pro</h3>
+            <div class="price">$19.99 <span>one-time &bull; perpetual</span></div>
+            <ul>
+              <li>Everything in Free</li>
+              <li>Offline Ed25519 license key (instant email delivery)</li>
+              <li>Full <code>guardrails resilience</code> &amp; chaos testing suite</li>
+              <li>Custom <code>profiles.toml</code> &amp; CI baseline ratchet (<code>--baseline</code>)</li>
+              <li>Desktop GUI + CSV/JSON capture export</li>
+              <li>Commercial &amp; CI pipeline usage</li>
+            </ul>
+          </div>
+          <a class="btn btn-solid" href="https://buy.stripe.com/5kQ4gA0aeb0C73L03t8N201" style="text-align:center;">Buy Pro</a>
+        </div>
+
+        <div class="tier">
+          <div>
+            <h3>Team</h3>
+            <div class="price">$59.99 <span>one-time &bull; perpetual</span></div>
+            <ul>
+              <li>Everything in Pro for your team</li>
+              <li>Shared offline key for CI runners</li>
+              <li>Team <code>guardrails.toml</code> &amp; custom link profiles</li>
+              <li>Priority email support</li>
+            </ul>
+          </div>
+          <a class="btn" href="https://buy.stripe.com/7sY3cwg9cfgS1JrbMb8N200" style="text-align:center;">Buy Team</a>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>&copy; 2026 Oceans Niagara, LLC &bull; Guardrails</span>
+      <span><a href="mailto:connect@oceansniagara.com">connect@oceansniagara.com</a></span>
+    </footer>
+  </div>
+
+  <script>
+    // Keep the worker name unchanged in wrangler.toml so this URL stays valid.
+    const WORKER_CLAIM_URL = "https://linkguard-license-worker.linkguard-api.workers.dev/claim";
+    const RELEASES_URL = "https://github.com/oceans-niagara/gardawg/releases/latest";
+    const sessionId = new URLSearchParams(window.location.search).get("session_id");
+
+    if (sessionId) {
+      const box = document.getElementById("claim-box");
+      const statusEl = document.getElementById("claim-status");
+      const metaEl = document.getElementById("claim-meta");
+      const detailsEl = document.getElementById("claim-details");
+      box.classList.remove("hidden");
+
+      fetch(`${WORKER_CLAIM_URL}?session_id=${encodeURIComponent(sessionId)}`)
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          return data;
+        })
+        .then((data) => {
+          statusEl.textContent = `License Ready — Guardrails ${String(data.tier || "pro").toUpperCase()}`;
+          metaEl.textContent = `Issued to ${data.holder || "customer"} • Perpetual offline license`;
+          document.getElementById("claim-token").textContent = data.license;
+          document.getElementById("claim-activate").textContent =
+            `# 1. Download a prebuilt binary (no Rust required):\n#    ${RELEASES_URL}\n\n` +
+            `# 2. Activate — Option A: save the key as guardrails.lic in your project folder\n` +
+            `#    Option B (Windows PowerShell):\n` +
+            `$env:GUARDRAILS_LICENSE_KEY="${data.license}"\n` +
+            `.\\guardrails-windows-x86_64.exe license-check\n\n` +
+            `#    Option B (macOS / Linux):\n` +
+            `export GUARDRAILS_LICENSE_KEY="${data.license}"\n` +
+            `./guardrails-macos-arm64 license-check`;
+
+          document.getElementById("copy-btn").addEventListener("click", async () => {
+            await navigator.clipboard.writeText(data.license);
+            document.getElementById("copy-btn").textContent = "Copied!";
+          });
+          document.getElementById("dl-btn").addEventListener("click", () => {
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([data.license + "\n"], { type: "text/plain" }));
+            a.download = "guardrails.lic";
+            a.click();
+          });
+          detailsEl.classList.remove("hidden");
+        })
+        .catch((err) => {
+          statusEl.textContent = "License Lookup Delayed";
+          metaEl.textContent = `${err.message} — check your email from connect@oceansniagara.com or refresh.`;
+        });
+    }
+  </script>
+</body>
+</html>

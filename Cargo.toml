@@ -1,0 +1,56 @@
+﻿[package]
+name = "guardrails"
+version = "0.4.0"
+edition = "2021"
+default-run = "guardrails"
+description = "Unified deterministic AI code guardrails, physical-layer link analyzer & chaos/impairment proxy"
+homepage = "https://oceansniagara.com"
+license = "LicenseRef-Proprietary"
+publish = false
+
+[dependencies]
+anyhow = "1"
+base64 = "0.22"
+bytes = "1"
+clap = { version = "4.5", features = ["derive", "env"] }
+ed25519-dalek = "2.1"
+globset = "0.4"
+http-body-util = "0.1"
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+ignore = "0.4"
+rand = "0.8"
+rand_chacha = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1.40", features = ["full"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tree-sitter = "0.25"
+tree-sitter-cpp = "0.23"
+tree-sitter-javascript = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-rust = "0.24"
+tree-sitter-typescript = "0.23"
+eframe = { version = "0.29", optional = true }
+egui_plot = { version = "0.29", optional = true }
+
+[features]
+dev-keygen = []
+gui = ["dep:eframe", "dep:egui_plot"]
+
+[[bin]]
+name = "guardrails"
+path = "src/main.rs"
+
+[[bin]]
+name = "guardrails-keygen"
+path = "src/bin/keygen.rs"
+required-features = ["dev-keygen"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
