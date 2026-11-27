@@ -1091,7 +1091,7 @@ fn inspect_gardawg_node(
                     push_finding(
                         findings, source, lang, "GR002-MISSING-TIMEOUT-PY-SOCKET", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
-                        "`socket.socket()` created without `.settimeout(...)` â€” blocking recv/connect can hang forever.".into(),
+                        "`socket.socket()` created without `.settimeout(...)` \u{2014} blocking recv/connect can hang forever.".into(),
                         None,
                         Some("Set an explicit socket timeout immediately after creation:\n```python\nsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\nsock.settimeout(2.0)\n```".into()),
                         None,

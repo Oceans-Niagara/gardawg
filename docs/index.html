@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gardawg â€” Deterministic AI-Code Guardrails, Link Analyzer &amp; Chaos Proxy</title>
+  <title>Gardawg &mdash; Deterministic AI-Code Guardrails, Link Analyzer &amp; Chaos Proxy</title>
   <link rel="stylesheet" href="./style.css?v=2" />
 </head>
 <body>
@@ -39,7 +39,7 @@
     <section>
       <h1>Deterministic guardrails for AI-generated code, CI pipelines, and constrained links.</h1>
       <p>
-        <strong>Catch fragile code, regressions, and transport bottlenecks before they ship.</strong> Gardawg runs fast, deterministic checks locally, in CI, or inside your AI coding tools via MCP â€” zero LLM dependency, zero code leaving your machine.
+        <strong>Catch fragile code, regressions, and transport bottlenecks before they ship.</strong> Gardawg runs fast, deterministic checks locally, in CI, or inside your AI coding tools via MCP &mdash; zero LLM dependency, zero code leaving your machine.
       </p>
       <p>
         One offline-first Rust binary: local <code>tree-sitter</code> AST rules (Python, Rust, TypeScript, JavaScript, C and C++, including Arduino <code>.ino</code>), configurable quality gates (<code>gardawg.toml</code>), SARIF reporting, a physical-layer link analyzer (LoRa, BLE, congested Wi-Fi, LEO satellite, UART), and a seeded chaos/impairment proxy for resilience testing.
@@ -175,12 +175,12 @@ gardawg mcp</pre>
           return data;
         })
         .then((data) => {
-          statusEl.textContent = `License Ready â€” Gardawg ${String(data.tier || "pro").toUpperCase()}`;
-          metaEl.textContent = `Issued to ${data.holder || "customer"} â€¢ Perpetual offline license`;
+          statusEl.textContent = `License Ready \u2014 Gardawg ${String(data.tier || "pro").toUpperCase()}`;
+          metaEl.textContent = `Issued to ${data.holder || "customer"} \u2022 Perpetual offline license`;
           document.getElementById("claim-token").textContent = data.license;
           document.getElementById("claim-activate").textContent =
             `# 1. Download a prebuilt binary (no Rust required):\n#    ${RELEASES_URL}\n\n` +
-            `# 2. Activate â€” Option A: save gardawg.lic in your project OR next to gardawg.exe\n` +
+            `# 2. Activate \u2014 Option A: save gardawg.lic in your project OR next to gardawg.exe\n` +
             `#    Option B (Windows PowerShell):\n` +
             `$env:GARDAWG_LICENSE_KEY="${data.license}"\n` +
             `.\\gardawg-windows-x86_64.exe license\n\n` +
@@ -202,7 +202,7 @@ gardawg mcp</pre>
         })
         .catch((err) => {
           statusEl.textContent = "License Lookup Delayed";
-          metaEl.textContent = `${err.message} â€” check your email from connect@oceansniagara.com or refresh.`;
+          metaEl.textContent = `${err.message} \u2014 check your email from connect@oceansniagara.com or refresh.`;
         });
     }
   </script>
