@@ -4,6 +4,17 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+pub const DEFAULT_LINK_PROFILE: &str = "wifi-24g-congested";
+pub const BUILTIN_LINK_PROFILE_IDS: &[&str] =
+    &["lora-sf12", "ble-1m", "wifi-24g-congested", "leo-sat", "uart-9600"];
+
+pub fn link_profile_tip(profile: &str) -> String {
+    format!(
+        "Tip: link profile is \"{profile}\". Switch it via `profile = \"...\"` under [link] in gardawg.toml ({}) or re-run init with --link-profile <id>.",
+        BUILTIN_LINK_PROFILE_IDS.join(" | ")
+    )
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(rename_all = "kebab-case")]
 pub enum Profile {
@@ -361,9 +372,10 @@ pub fn render_toml_for_init(
     detected: &DetectedWorkspace,
     profile_override: Option<Profile>,
     enable_link: bool,
+    link_profile: Option<&str>,
 ) -> String {
     let profile = profile_override.unwrap_or(detected.profile);
-    let link_on = enable_link || profile == Profile::Embedded || detected.has_embedded_signals;
+    let link_on = enable_link || link_profile.is_some() || profile == Profile::Embedded || detected.has_embedded_signals;
     let disabled = profile.default_disabled_rules();
     let rules_line = if disabled.is_empty() {
         "# disabled = [\"GR001\", \"GR003\"]".to_string()
@@ -380,10 +392,11 @@ pub fn render_toml_for_init(
         None => "# openapi_spec = \"openapi.yaml\"".to_string(),
     };
 
+    let chosen_link = link_profile.unwrap_or(DEFAULT_LINK_PROFILE);
     let link_block = if link_on {
-        r#"[link]
+        format!(r#"[link]
 enabled = true
-profile = "lora-sf12" # "lora-sf12" | "ble-1m" | "wifi-24g-congested" | "leo-sat" | "uart-9600"
+profile = "{chosen_link}" # "lora-sf12" | "ble-1m" | "wifi-24g-congested" | "leo-sat" | "uart-9600"
 assumed_hz = 1.0
 fail_on = "high" # "none" | "critical" | "high" | "medium"
 paths = ["."]
@@ -392,14 +405,14 @@ paths = ["."]
 # name = "telemetry_frame"
 # bytes = 20
 # hz = 0.25
-# require_single_mtu = true"#
+# require_single_mtu = true"#)
     } else {
         r#"[link]
 enabled = false
 # profile = "lora-sf12"
 # assumed_hz = 1.0
 # fail_on = "high"
-# paths = ["."]"#
+# paths = ["."]"#.to_string()
     };
 
     format!(
@@ -468,7 +481,7 @@ notes = "Custom 915MHz tactical mesh profile"
 
 pub fn render_starter_budgets_toml() -> &'static str {
     r#"# Standalone physical-layer link budget policy (optional when using [link] in gardawg.toml)
-profile = "lora-sf12"
+profile = "wifi-24g-congested"
 assumed_hz = 1.0
 fail_on = "high"
 paths = ["."]

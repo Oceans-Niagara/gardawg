@@ -77,6 +77,15 @@ pub fn normalize_sarif_uri(path: &str) -> String {
 }
 
 pub fn to_sarif(findings: &[Finding], failed_payloads: &[&PayloadCheckResult], config_path: Option<&Path>) -> Value {
+    to_sarif_with_org(findings, failed_payloads, config_path, None)
+}
+
+pub fn to_sarif_with_org(
+    findings: &[Finding],
+    failed_payloads: &[&PayloadCheckResult],
+    config_path: Option<&Path>,
+    enterprise_org: Option<&str>,
+) -> Value {
     let mut rules_map: BTreeMap<String, Value> = BTreeMap::new();
     let mut results: Vec<Value> = Vec::with_capacity(findings.len() + failed_payloads.len());
 
@@ -164,18 +173,29 @@ pub fn to_sarif(findings: &[Finding], failed_payloads: &[&PayloadCheckResult], c
     }
 
     let rules: Vec<Value> = rules_map.into_values().collect();
+    let driver = match enterprise_org {
+        Some(org) => json!({
+            "name": "gardawg",
+            "version": env!("CARGO_PKG_VERSION"),
+            "rules": rules,
+            "properties": { "licenseAudit": format!("Licensed to {org} — Enterprise") }
+        }),
+        None => json!({
+            "name": "gardawg",
+            "version": env!("CARGO_PKG_VERSION"),
+            "rules": rules
+        }),
+    };
+    let mut run = json!({
+        "tool": { "driver": driver },
+        "results": results
+    });
+    if let Some(org) = enterprise_org {
+        run["properties"] = json!({ "licensedTo": format!("Licensed to {org} — Enterprise") });
+    }
     json!({
         "$schema": SARIF_SCHEMA,
         "version": "2.1.0",
-        "runs": [{
-            "tool": {
-                "driver": {
-                    "name": "gardawg",
-                    "version": env!("CARGO_PKG_VERSION"),
-                    "rules": rules
-                }
-            },
-            "results": results
-        }]
+        "runs": [run]
     })
 }

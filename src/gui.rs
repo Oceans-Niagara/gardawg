@@ -1,5 +1,5 @@
-use crate::license::{current_unix_secs, require_pro};
-use crate::physics::{shannon_capacity_bps, LinkProfile};
+use crate::license::{current_unix_secs, require_pro_with_key};
+use crate::physics::{all_profiles, evaluate_payload, shannon_capacity_bps, LinkProfile};
 use crate::proxy::{
     run_proxy_live, spawn_metrics_sampler, LinkShaper, PacketDecision, ProxyMetrics, ProxyTransport,
 };
@@ -20,7 +20,28 @@ pub fn run_dashboard(
     seed: u64,
     udp: bool,
 ) -> Result<(), String> {
-    let claims = require_pro("Pro Desktop Dashboard")?;
+    let available = all_profiles(None).unwrap_or_else(|_| vec![initial_profile.clone()]);
+    run_dashboard_with_profiles(initial_profile, available, listen, target, seed, udp, None)
+}
+
+pub fn run_dashboard_with_profiles(
+    initial_profile: LinkProfile,
+    mut available_profiles: Vec<LinkProfile>,
+    listen: String,
+    target: Option<String>,
+    seed: u64,
+    udp: bool,
+    cli_key: Option<&str>,
+) -> Result<(), String> {
+    let claims = require_pro_with_key("Pro Desktop Dashboard", cli_key)?;
+
+    if !available_profiles.iter().any(|p| p.id == initial_profile.id) {
+        available_profiles.insert(0, initial_profile.clone());
+    }
+    let selected_profile_idx = available_profiles
+        .iter()
+        .position(|p| p.id == initial_profile.id)
+        .unwrap_or(0);
 
     let transport = if udp { ProxyTransport::Udp } else { ProxyTransport::Tcp };
     let (metrics_tx, metrics_rx) = watch::channel(ProxyMetrics::from_profile(&initial_profile));
@@ -75,6 +96,9 @@ pub fn run_dashboard(
 
     let app = DashboardApp {
         holder: claims.holder,
+        cli_key: cli_key.map(|s| s.to_string()),
+        available_profiles,
+        selected_profile_idx,
         profile: initial_profile,
         profile_tx,
         metrics_rx,
@@ -87,13 +111,13 @@ pub fn run_dashboard(
         status_msg: if let Some(t) = target {
             format!("Live proxy active -> {t}")
         } else {
-            "Simulator active (toggle Synthetic Load or pass --target to proxy live traffic)".into()
+            "Simulator & calculator active (toggle Synthetic Load or pass --target to proxy live traffic)".into()
         },
         last_timestamp: -1.0,
     };
 
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1140.0, 740.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([1160.0, 760.0]),
         ..Default::default()
     };
 
@@ -107,6 +131,9 @@ pub fn run_dashboard(
 
 struct DashboardApp {
     holder: String,
+    cli_key: Option<String>,
+    available_profiles: Vec<LinkProfile>,
+    selected_profile_idx: usize,
     profile: LinkProfile,
     profile_tx: watch::Sender<LinkProfile>,
     metrics_rx: watch::Receiver<ProxyMetrics>,
@@ -138,14 +165,37 @@ impl eframe::App for DashboardApp {
             ui.horizontal(|ui| {
                 ui.heading("Gardawg Pro Dashboard");
                 ui.separator();
-                ui.label(format!("Profile: {}", self.profile.id));
+                ui.label("Profile:");
+                let current_label = self
+                    .available_profiles
+                    .get(self.selected_profile_idx)
+                    .map(|p| p.id.as_ref())
+                    .unwrap_or(self.profile.id.as_ref());
+                let mut switched_to: Option<usize> = None;
+                egui::ComboBox::from_label("")
+                    .selected_text(current_label)
+                    .show_ui(ui, |ui| {
+                        for (idx, p) in self.available_profiles.iter().enumerate() {
+                            let label = format!("{} — {}", p.id, p.name);
+                            if ui.selectable_value(&mut self.selected_profile_idx, idx, label).clicked() {
+                                switched_to = Some(idx);
+                            }
+                        }
+                    });
+                if let Some(idx) = switched_to {
+                    if let Some(chosen) = self.available_profiles.get(idx) {
+                        self.profile = chosen.clone();
+                        let _ = self.profile_tx.send(self.profile.clone());
+                        self.status_msg = format!("Switched link profile to {}", self.profile.id);
+                    }
+                }
                 ui.separator();
                 ui.label(format!("Licensed to: {}", self.holder));
             });
         });
 
         egui::SidePanel::left("controls")
-            .min_width(310.0)
+            .min_width(320.0)
             .show(ctx, |ui| {
                 ui.heading("Channel Parameters");
                 let mut changed = false;
@@ -199,7 +249,7 @@ impl eframe::App for DashboardApp {
                 }
 
                 ui.separator();
-                ui.heading("Synthetic Load Generator");
+                ui.heading("Synthetic Load & Calculator");
                 let mut synth_changed = ui.checkbox(&mut self.synth_enabled, "Inject Periodic Packets").changed();
                 synth_changed |= ui.add(egui::Slider::new(&mut self.synth_bytes, 8..=512).text("Payload (B)")).changed();
                 synth_changed |= ui
@@ -209,18 +259,28 @@ impl eframe::App for DashboardApp {
                     let _ = self.synth_tx.send((self.synth_enabled, self.synth_bytes, self.synth_hz));
                 }
 
+                let calc = evaluate_payload(&self.profile, self.synth_bytes, self.synth_hz);
+                ui.label(format!(
+                    "Budget: {} frag(s), {:.1} ms airtime, {:.1}% util, max {:.2} Hz, BER loss {:.2}%",
+                    calc.fragments_per_message,
+                    calc.airtime_ms_per_message,
+                    calc.utilization_pct,
+                    calc.max_sustainable_hz,
+                    calc.packet_loss_prob_pct
+                ));
+
                 ui.separator();
                 ui.heading("Replay Capture Export");
                 ui.label(format!("Captured samples: {}", self.full_capture.len()));
                 ui.horizontal(|ui| {
                     if ui.button("Export CSV").clicked() {
-                        match export_csv(&self.full_capture) {
+                        match export_csv(&self.full_capture, self.cli_key.as_deref()) {
                             Ok(path) => self.status_msg = format!("Exported CSV: {path}"),
                             Err(e) => self.status_msg = format!("Export error: {e}"),
                         }
                     }
                     if ui.button("Export JSON").clicked() {
-                        match export_json(&self.profile, &self.full_capture) {
+                        match export_json(&self.profile, &self.full_capture, self.cli_key.as_deref()) {
                             Ok(path) => self.status_msg = format!("Exported JSON: {path}"),
                             Err(e) => self.status_msg = format!("Export error: {e}"),
                         }
@@ -280,8 +340,8 @@ impl eframe::App for DashboardApp {
     }
 }
 
-fn export_csv(samples: &[ProxyMetrics]) -> Result<String, String> {
-    require_pro("Replay Capture Export")?;
+fn export_csv(samples: &[ProxyMetrics], cli_key: Option<&str>) -> Result<String, String> {
+    require_pro_with_key("Replay Capture Export", cli_key)?;
     let path = format!("gardawg_capture_{}.csv", current_unix_secs());
     let mut out = String::from(
         "timestamp_s,profile_id,offered_load_bps,delivered_goodput_bps,effective_goodput_bps,shannon_ceiling_bps,queued_bytes,queue_capacity_bytes,packets_in,packets_forwarded,queue_drops,ber_drops,bytes_in,bytes_forwarded,fragments\n",
@@ -299,8 +359,8 @@ fn export_csv(samples: &[ProxyMetrics]) -> Result<String, String> {
     Ok(path)
 }
 
-fn export_json(profile: &LinkProfile, samples: &[ProxyMetrics]) -> Result<String, String> {
-    require_pro("Replay Capture Export")?;
+fn export_json(profile: &LinkProfile, samples: &[ProxyMetrics], cli_key: Option<&str>) -> Result<String, String> {
+    require_pro_with_key("Replay Capture Export", cli_key)?;
     let path = format!("gardawg_capture_{}.json", current_unix_secs());
     let payload = serde_json::json!({
         "exported_unix": current_unix_secs(),

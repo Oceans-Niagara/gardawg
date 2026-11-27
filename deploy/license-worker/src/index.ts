@@ -1,4 +1,4 @@
-export interface Env {
+﻿export interface Env {
   SIGNING_KEY_B64: string;       // secret: contents of linkguard-private.key
   STRIPE_WEBHOOK_SECRET: string; // secret: whsec_...
   STRIPE_API_KEY?: string;       // secret: rk_live_... or sk_live_... (needed for Price ID lookup & /claim)
@@ -7,8 +7,11 @@ export interface Env {
   SUPPORT_EMAIL: string;
   PRO_PRICE_ID: string;
   TEAM_PRICE_ID: string;
+  ENTERPRISE_PRICE_ID?: string;
   ALLOWED_ORIGIN: string;
 }
+
+type Tier = "pro" | "team" | "enterprise";
 
 const PKCS8_ED25519_PREFIX = new Uint8Array([
   0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06,
@@ -75,9 +78,15 @@ async function verifyStripeSignature(
   return timingSafeEqualHex(expectedHex, v1);
 }
 
+function tierDefaults(tier: Tier): { max_seats: number | null; ci_allowed: boolean } {
+  if (tier === "enterprise") return { max_seats: null, ci_allowed: true };
+  if (tier === "team") return { max_seats: 6, ci_allowed: true };
+  return { max_seats: 2, ci_allowed: false };
+}
+
 async function mintLicenseToken(
   seedB64: string,
-  tier: "pro" | "team",
+  tier: Tier,
   holder: string,
   licenseId: string,
   issuedUnix: number,
@@ -97,12 +106,15 @@ async function mintLicenseToken(
     ["sign"],
   );
 
+  const { max_seats, ci_allowed } = tierDefaults(tier);
   const claims = {
     tier,
     holder,
     issued_unix: issuedUnix,
-    expires_unix: null, // Lifetime v0.3 license
+    expires_unix: null,
     license_id: licenseId,
+    max_seats,
+    ci_allowed,
   };
 
   const payloadB64 = toBase64Url(new TextEncoder().encode(JSON.stringify(claims)));
@@ -127,24 +139,30 @@ async function fetchStripeSessionWithItems(
   return resp.json();
 }
 
-function resolveTierFromSession(session: any, env: Env): "pro" | "team" | null {
-  const metaTier = String(session.metadata?.tier || "").toLowerCase();
-  if (metaTier === "team") return "team";
-  if (metaTier === "pro") return "pro";
-
+function resolveTierFromSession(session: any, env: Env): Tier | null {
+  // Always trust authoritative line_items Price IDs before session.metadata
+  // so cloned Stripe Payment Links with leftover metadata cannot misclassify.
   const items: any[] = session.line_items?.data ?? [];
   for (const item of items) {
     const priceId = item.price?.id;
+    if (env.ENTERPRISE_PRICE_ID && priceId === env.ENTERPRISE_PRICE_ID) return "enterprise";
     if (priceId === env.TEAM_PRICE_ID) return "team";
     if (priceId === env.PRO_PRICE_ID) return "pro";
   }
+
+  const metaTier = String(session.metadata?.tier || "").toLowerCase();
+  if (metaTier === "enterprise") return "enterprise";
+  if (metaTier === "team") return "team";
+  if (metaTier === "pro") return "pro";
+
   return null;
 }
 
 async function sendLicenseEmail(
   env: Env,
   toEmail: string,
-  tier: "pro" | "team",
+  tier: Tier,
+  licenseId: string,
   token: string,
 ): Promise<void> {
   if (!env.RESEND_API_KEY) return;
@@ -153,24 +171,25 @@ async function sendLicenseEmail(
     headers: {
       Authorization: `Bearer ${env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
+      "Idempotency-Key": `license-${licenseId}-${tier}`,
     },
     body: JSON.stringify({
       from: env.FROM_EMAIL,
       reply_to: env.SUPPORT_EMAIL,
       to: [toEmail],
-      subject: `Your Gardawg ${tier.toUpperCase()} Lifetime Offline License`,
+      subject: `Your Gardawg ${tier.toUpperCase()} Offline License`,
       text:
         `Thanks for purchasing Gardawg ${tier.toUpperCase()}!\n\n` +
-        `Your offline Ed25519 license key (v0.3 lifetime):\n\n` +
+        `Your offline Ed25519 license key:\n\n` +
         `${token}\n\n` +
-        `Download Gardawg (Windows, macOS, Linux — GUI included):\n` +
+        `Download Gardawg (Windows, macOS, Linux — headless & -gui builds):\n` +
         `  https://github.com/oceans-niagara/gardawg/releases/latest\n\n` +
         `How to activate (100% offline, zero network calls):\n` +
-        `  Option A: Save the key above to a file named gardawg.lic in your project folder\n` +
+        `  Option A: Save the key above as gardawg.lic in your project folder OR next to the gardawg binary\n` +
         `  Option B: Set environment variable GARDAWG_LICENSE_KEY="<key>"\n\n` +
         `Verify anytime:\n` +
-        `  gardawg license-check\n` +
-        `  gardawg gui --profile lora-sf12\n\n` +
+        `  gardawg license\n` +
+        `  gardawg-gui --profile ble-1m\n\n` +
         `Questions? Reply to ${env.SUPPORT_EMAIL}.\n`,
     }),
   });
@@ -199,8 +218,7 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(env, request) });
     }
 
-    // Instant post-checkout key claim for your GitHub Pages success page:
-    // GET /claim?session_id=cs_...
+    // Instant post-checkout key claim: GET /claim?session_id=cs_...
     if (request.method === "GET" && url.pathname === "/claim") {
       const sessionId = url.searchParams.get("session_id")?.trim();
       if (!sessionId || !sessionId.startsWith("cs_")) {
@@ -225,7 +243,14 @@ export default {
           });
         }
 
-        const tier = resolveTierFromSession(session, env) ?? "pro";
+        const tier = resolveTierFromSession(session, env);
+        if (!tier) {
+          return new Response(JSON.stringify({ error: "Unrecognized product price ID" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders(env, request) },
+          });
+        }
+
         const email: string =
           session.customer_details?.email || session.customer_email || "customer";
         const issuedUnix = Number(session.created) || Math.floor(Date.now() / 1000);
@@ -273,11 +298,11 @@ export default {
       return new Response("Payment pending", { status: 200 });
     }
 
-    let tier = resolveTierFromSession(session, env);
-    if (!tier && env.STRIPE_API_KEY) {
+    if ((!session.line_items?.data || session.line_items.data.length === 0) && env.STRIPE_API_KEY) {
       session = await fetchStripeSessionWithItems(session.id, env.STRIPE_API_KEY);
-      tier = resolveTierFromSession(session, env);
     }
+
+    const tier = resolveTierFromSession(session, env);
     if (!tier) {
       return new Response("Unrecognized product price ID", { status: 400 });
     }
@@ -294,7 +319,7 @@ export default {
       issuedUnix,
     );
 
-    await sendLicenseEmail(env, email, tier, token);
+    await sendLicenseEmail(env, email, tier, session.id, token);
 
     return new Response(JSON.stringify({ issued: true, tier, license_id: session.id }), {
       status: 200,

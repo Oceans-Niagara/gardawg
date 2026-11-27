@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gardawg — Deterministic AI-Code Guardrails, Link Analyzer &amp; Chaos Proxy</title>
+  <title>Gardawg â€” Deterministic AI-Code Guardrails, Link Analyzer &amp; Chaos Proxy</title>
   <link rel="stylesheet" href="./style.css?v=2" />
 </head>
 <body>
@@ -39,7 +39,7 @@
     <section>
       <h1>Deterministic guardrails for AI-generated code, CI pipelines, and constrained links.</h1>
       <p>
-        <strong>Catch fragile code, regressions, and transport bottlenecks before they ship.</strong> Gardawg runs fast, deterministic checks locally, in CI, or inside your AI coding tools via MCP — zero LLM dependency, zero code leaving your machine.
+        <strong>Catch fragile code, regressions, and transport bottlenecks before they ship.</strong> Gardawg runs fast, deterministic checks locally, in CI, or inside your AI coding tools via MCP â€” zero LLM dependency, zero code leaving your machine.
       </p>
       <p>
         One offline-first Rust binary: local <code>tree-sitter</code> AST rules (Python, Rust, TypeScript, JavaScript, C and C++, including Arduino <code>.ino</code>), configurable quality gates (<code>gardawg.toml</code>), SARIF reporting, a physical-layer link analyzer (LoRa, BLE, congested Wi-Fi, LEO satellite, UART), and a seeded chaos/impairment proxy for resilience testing.
@@ -125,8 +125,8 @@ gardawg mcp</pre>
               <li>Offline Ed25519 license key (instant email delivery)</li>
               <li><code>gardawg resilience</code>: automated Schemathesis &amp; Keploy fault-injection suite</li>
               <li>Custom <code>profiles.toml</code> &amp; CI baseline ratchet (<code>--baseline</code>)</li>
-              <li>Desktop GUI + CSV/JSON capture export</li>
-              <li>Commercial &amp; CI pipeline usage</li>
+              <li><code>gardawg-gui</code> desktop dashboard + CSV/JSON export</li>
+              <li>Local workstation usage (up to 2 machines)</li>
             </ul>
           </div>
           <a class="btn btn-solid" href="https://buy.stripe.com/5kQ4gA0aeb0C73L03t8N201" style="text-align:center;">Buy Pro</a>
@@ -137,15 +137,16 @@ gardawg mcp</pre>
             <h3>Team</h3>
             <div class="price">$59.99 <span>one-time &bull; perpetual</span></div>
             <ul>
-              <li>Everything in Pro for your team</li>
-              <li>Shared offline key for CI runners</li>
-              <li>Team <code>gardawg.toml</code> &amp; custom link profiles</li>
+              <li>Everything in Pro + CI/CD runner support (up to 6 seats)</li>
+              <li><code>gardawg sync --check</code> config drift gate</li>
+              <li><code>[agents].custom_rules</code> policy enforcement</li>
               <li>Priority email support</li>
             </ul>
           </div>
           <a class="btn" href="https://buy.stripe.com/7sY3cwg9cfgS1JrbMb8N200" style="text-align:center;">Buy Team</a>
         </div>
       </div>
+      <p class="muted" style="margin-top:14px;"><strong>Enterprise ($299+):</strong> Unlimited seats &amp; CI runners, <code>--profile-matrix</code> multi-link sweeps, and org-stamped SARIF audit headers. <a href="mailto:connect@oceansniagara.com">Contact sales</a>.</p>
     </section>
 
     <footer>
@@ -174,18 +175,18 @@ gardawg mcp</pre>
           return data;
         })
         .then((data) => {
-          statusEl.textContent = `License Ready — Gardawg ${String(data.tier || "pro").toUpperCase()}`;
-          metaEl.textContent = `Issued to ${data.holder || "customer"} • Perpetual offline license`;
+          statusEl.textContent = `License Ready â€” Gardawg ${String(data.tier || "pro").toUpperCase()}`;
+          metaEl.textContent = `Issued to ${data.holder || "customer"} â€¢ Perpetual offline license`;
           document.getElementById("claim-token").textContent = data.license;
           document.getElementById("claim-activate").textContent =
             `# 1. Download a prebuilt binary (no Rust required):\n#    ${RELEASES_URL}\n\n` +
-            `# 2. Activate — Option A: save the key as gardawg.lic in your project folder\n` +
+            `# 2. Activate â€” Option A: save gardawg.lic in your project OR next to gardawg.exe\n` +
             `#    Option B (Windows PowerShell):\n` +
             `$env:GARDAWG_LICENSE_KEY="${data.license}"\n` +
-            `.\\gardawg-windows-x86_64.exe license-check\n\n` +
+            `.\\gardawg-windows-x86_64.exe license\n\n` +
             `#    Option B (macOS / Linux):\n` +
             `export GARDAWG_LICENSE_KEY="${data.license}"\n` +
-            `./gardawg-macos-arm64 license-check`;
+            `./gardawg-macos-arm64 license`;
 
           document.getElementById("copy-btn").addEventListener("click", async () => {
             await navigator.clipboard.writeText(data.license);
@@ -201,7 +202,7 @@ gardawg mcp</pre>
         })
         .catch((err) => {
           statusEl.textContent = "License Lookup Delayed";
-          metaEl.textContent = `${err.message} — check your email from connect@oceansniagara.com or refresh.`;
+          metaEl.textContent = `${err.message} â€” check your email from connect@oceansniagara.com or refresh.`;
         });
     }
   </script>

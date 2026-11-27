@@ -1,5 +1,5 @@
-﻿use crate::config::LinkConfig;
-use crate::license::require_pro;
+use crate::config::LinkConfig;
+use crate::license::require_pro_with_key;
 use crate::physics::{evaluate_payload, LinkProfile, PayloadCheckRule};
 use crate::sarif::{normalize_sarif_uri, Finding, PayloadCheckResult};
 use serde::Deserialize;
@@ -74,11 +74,12 @@ pub fn evaluate_payload_checks(
 pub fn apply_baseline_ratchet(
     current: Vec<Finding>,
     baseline_path: Option<&Path>,
+    cli_key: Option<&str>,
 ) -> anyhow::Result<(Vec<Finding>, usize)> {
     let Some(bpath) = baseline_path else {
         return Ok((current, 0));
     };
-    require_pro("CI Regression Baseline (--baseline)")
+    require_pro_with_key("CI Regression Baseline (--baseline)", cli_key)
         .map_err(|e| anyhow::anyhow!(e))?;
     let raw = fs::read_to_string(bpath)?;
     let parsed: BaselineFile = serde_json::from_str(raw.trim_start_matches('\u{feff}'))?;

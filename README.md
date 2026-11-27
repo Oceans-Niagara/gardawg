@@ -2,7 +2,7 @@
 
 **Deterministic AI-code guardrails, physical-layer link analysis, and chaos testing in one offline-first binary.**
 
-Gardawg is an offline-first Rust CLI and MCP server by [Oceans Niagara, LLC](https://oceansniagara.com). It enforces deterministic AST rules and quality gates on your code, checks payloads against real physical-layer limits (LoRa, BLE, Wi-Fi, LEO satellite, UART), and runs seeded chaos/impairment proxies, all with zero LLM dependencies and zero code leaving your machine. AST rules cover Python, Rust, TypeScript, JavaScript, C and C++ (including Arduino `.ino`).
+Gardawg is a 100% offline-first Rust CLI and MCP server by [Oceans Niagara, LLC](https://oceansniagara.com). It enforces deterministic AST rules and quality gates on your code, checks payloads against real physical-layer limits (LoRa, BLE, Wi-Fi, LEO satellite, UART), and runs seeded chaos/impairment proxies â€” with zero LLM dependencies inside Gardawg and zero code leaving your machine. AST rules cover Python, Rust, TypeScript, JavaScript, C and C++ (including Arduino `.ino`).
 
 - **Website, WASM sandbox & licensing:** https://oceans-niagara.github.io/gardawg/
 - **Interactive sandbox:** https://oceans-niagara.github.io/gardawg/sandbox.html
@@ -11,15 +11,15 @@ Gardawg is an offline-first Rust CLI and MCP server by [Oceans Niagara, LLC](htt
 
 * **`GR000` Syntax & stray fences:** parse errors and stray Markdown code fences, even without `tsc`/`cargo`/`ruff`.
 * **`GR001` Money floats:** `f32`/`f64` on money and quantity identifiers.
-* **`GR002` Missing timeouts:** `fetch`, `axios`, `reqwest`, `requests`, and `httpx` calls without explicit timeouts.
-* **`GR004`–`GR005` Swallowed errors & stubs:** empty `catch`/`except: pass`, ignored results, `todo!()`, `NotImplementedError`, and placeholder comments.
-* **`GR006`–`GR007` Security & panics:** hardcoded secrets (`sk_live_`, `AKIA`, `ghp_`, private keys), `eval`/`exec`/`shell=True`, and non-test Rust `.unwrap()`.
-* **Link budgets:** `budget` computes the Shannon ceiling, MTU fragmentation, airtime, and BER loss for a payload on a chosen link profile.
-* **Chaos & SARIF:** seeded TCP/UDP/HTTP impairment proxies and OASIS SARIF 2.1.0 output (`--format sarif`).
+* **`GR002` Missing timeouts:** `fetch`, `axios`, `reqwest`, `requests`, `httpx`, `socket.socket()`, `HTTPServer`, and C `recv`/`connect` calls without explicit timeouts.
+* **`GR004`â€“`GR005` Swallowed errors & stubs:** empty `catch`/`except: pass`, ignored C returns, non-atomic state writes, `todo!()`, `NotImplementedError`, and placeholder comments.
+* **`GR006`â€“`GR007` Security & panics:** hardcoded secrets (`sk_live_`, `AKIA`, `ghp_`, private keys), `eval`/`exec`/`shell=True`/`strcpy`, and non-test Rust `.unwrap()`.
+* **Link budgets & AST rules:** `budget` computes the Shannon ceiling, MTU fragmentation, airtime, and BER loss; `--link` adds loop-send batching, framing, and timeout checks.
+* **Chaos, verify & SARIF:** seeded TCP/UDP/HTTP impairment proxies, `gardawg verify`, and OASIS SARIF 2.1.0 output (`--format sarif`).
 
 `init` detects your stack and generates `gardawg.toml`, `AGENTS.md`, `.mcp.json`, and `opencode.json`. Re-sync them after editing `gardawg.toml` with `gardawg sync`.
 
-## Install & Quickstart
+## Install & Multi-Project Quickstart
 
 **Prebuilt binaries (no Rust required):** download from [GitHub Releases](https://github.com/Oceans-Niagara/gardawg/releases/latest). Headless builds suit CI and servers; `-gui` builds add the desktop dashboard.
 
@@ -30,41 +30,92 @@ Gardawg is an offline-first Rust CLI and MCP server by [Oceans Niagara, LLC](htt
 | macOS (Intel) | `gardawg-macos-x86_64` | `gardawg-gui-macos-x86_64` |
 | Linux | `gardawg-linux-x86_64` | `gardawg-gui-linux-x86_64` |
 
+### Option 1: Global `PATH` Install (Recommended for Multiple Repos)
+
+Run `gardawg install` (alias `install-path`) to copy the binary + adjacent `gardawg.lic` into `%LOCALAPPDATA%\Programs\gardawg` (Windows) or `~/.local/bin` (macOS/Linux) and add it to your user `PATH` â€” or move `gardawg.exe` + `gardawg.lic` there manually:
+
 ```powershell
-# Windows (PowerShell, from your project root)
-.\gardawg-windows-x86_64.exe init
-.\gardawg-windows-x86_64.exe check
+# Windows (PowerShell)
+.\gardawg-windows-x86_64.exe install
+
+# In ANY repo root (new terminal):
+gardawg init --link
+gardawg check --format text
 ```
 
 ```bash
-# macOS / Linux (swap the binary name for your OS/arch)
+# macOS / Linux
 chmod +x ./gardawg-macos-arm64
-./gardawg-macos-arm64 init
-./gardawg-macos-arm64 check --format sarif
+./gardawg-macos-arm64 install
+gardawg init --link
 ```
 
-```bash
-# Or build from source
-cargo install --git https://github.com/Oceans-Niagara/gardawg
-cargo install --git https://github.com/Oceans-Niagara/gardawg --features gui   # includes the desktop dashboard
+`init --link` defaults to `wifi-24g-congested` (for general networked apps). Pass `--link-profile ble-1m` or `--link-profile lora-sf12` for constrained RF/serial links, or edit `[link] profile = "..."` in `gardawg.toml` anytime.
 
-gardawg init
+### Option 2: Point at Any Project Without Modifying `PATH` (`-w`)
+
+```powershell
+.\gardawg-windows-x86_64.exe -w C:\path\to\project init --link
+```
+
+`init` automatically writes the binary's full path into `.mcp.json` and `opencode.json`, so MCP works from your AI tools even without `gardawg` on `PATH`.
+
+## Build from Source & Core Commands
+
+```bash
+cargo install --git https://github.com/Oceans-Niagara/gardawg
+cargo install --git https://github.com/Oceans-Niagara/gardawg --features gui
+
 gardawg check --format sarif
 gardawg budget --profile lora-sf12 --bytes 64 --hz 10
 gardawg proxy --listen 127.0.0.1:9000 --target 127.0.0.1:9001 --profile ble-1m --seed 42
+gardawg verify --profile wifi-24g-congested --udp --listen 127.0.0.1:9000 --upstream 127.0.0.1:9001 --cmd "python client.py"
+gardawg resilience --openapi openapi.yaml
 gardawg mcp
+```
+
+**`gardawg resilience` example:** pass `--openapi openapi.yaml` (requires `schemathesis` on `PATH`) or set `[resilience] openapi_spec` / `keploy_cmd` in `gardawg.toml`. Start your API on `127.0.0.1:8080` (or set `[resilience] upstream`), then run `gardawg resilience --openapi openapi.yaml`.
+
+## Desktop GUI (`gardawg-gui`)
+
+Download the `-gui` binary (or build with `--features gui`). Launch it in standalone interactive calculator/simulator mode (no `--target` or arguments required â€” just double-click or run `gardawg-gui`), or proxy live TCP/UDP traffic while hot-swapping link profiles from the top toolbar dropdown:
+
+```powershell
+# Standalone simulator & interactive payload calculator (no --target needed)
+.\gardawg-gui-windows-x86_64.exe
+
+# Live UDP impairment proxy + real-time throughput/drop plots
+.\gardawg-gui-windows-x86_64.exe gui --udp --listen 127.0.0.1:9000 --target 127.0.0.1:9001 --profile ble-1m
+```
+
+## AI Agents & Local Ollama
+
+Gardawg itself is 100% offline â€” your host coding CLI (OpenCode, Claude Code, Cursor, etc.) chooses which LLM runs.
+
+* **Model-agnostic `opencode.json`:** `gardawg init` includes a commented local Ollama `"provider"` template (`http://127.0.0.1:11434/v1`) in `opencode.json` so you can uncomment it with any `ollama list` tag and stay 100% local instead of hitting cloud models.
+* **Built-in single-file repair loop (`gardawg fix`):** feed `gardawg check` findings + remedies straight to small local Ollama models (1.5Bâ€“3B) without multi-tool agent overhead:
+
+```bash
+gardawg fix --model ollama/qwen2.5-coder:3b
+gardawg fix --model ollama/qwen2.5-coder:1.5b --file src/client.py --dry-run
 ```
 
 ## Licensing
 
 Offline Ed25519-signed keys (`LG1...`), verified locally with zero network calls. Perpetual, one-time purchase.
 
-* **Free ($0):** core CLI, AST rules, quality gates, SARIF output, built-in link profiles, seeded `proxy` and `chaos`, stdio MCP server, and the browser sandbox.
-* **Pro ($19.99):** everything in Free, plus `gardawg resilience` (Schemathesis & Keploy through the chaos proxy), custom `profiles.toml`, the CI baseline ratchet (`--baseline`), the desktop GUI, and commercial/CI usage.
-* **Team ($59.99):** everything in Pro for your team, with a shared offline key for CI runners and priority email support.
+**License lookup order (first match wins):**
+1. `--license-key <key-or-path>`
+2. `GARDAWG_LICENSE_KEY` (or `LINKGUARD_LICENSE`) environment variable
+3. `./gardawg.lic` (or `./linkguard.lic`) in the current working directory
+4. `<exe_dir>/gardawg.lic` (or `<exe_dir>/linkguard.lic`) next to the `gardawg` binary (global fallback across all repos)
+5. `%APPDATA%\gardawg\license.lic` (Windows) or `~/.config/gardawg/license.lic` (macOS/Linux)
 
-Activate by saving your key as `gardawg.lic` in your project folder, or by setting `GARDAWG_LICENSE_KEY`. Verify with `gardawg license`.
+Verify anytime with `gardawg license`.
 
----
+* **Free ($0):** core CLI, AST rules, quality gates, SARIF output, built-in link profiles, seeded proxy/chaos/verify, `gardawg fix --model ollama/<tag>`, stdio MCP server, and browser sandbox.
+* **Pro ($19.99 one-time â€” Local Workstations):** everything in Free, plus `gardawg resilience`, custom `profiles.toml`, local `--baseline` ratchet, and `gardawg-gui` desktop dashboard with CSV/JSON export (`ci_allowed: false` â€” local workstations only).
+* **Team ($59.99 one-time â€” Up to 6 Seats + CI):** everything in Pro, plus CI/CD runner support (`ci_allowed: true`), `gardawg sync --check` config drift gate, `[agents].custom_rules` enforcement, and offline 90-day contributor cap (`<= 6` non-bot committers via `git shortlog`).
+* **Enterprise ($299+ â€” Unlimited Seats & CI):** everything in Team with `max_seats: null` (unlimited developers & CI runners), multi-profile matrix sweeps (`gardawg check --profile-matrix ble-1m,wifi-24g-congested,lora-sf12`), and organization-stamped SARIF audit headers (`Licensed to <Org> â€” Enterprise`).
 
-&copy; 2026 Oceans Niagara, LLC &bull; [connect@oceansniagara.com](mailto:connect@oceansniagara.com)
+Â© 2026 Oceans Niagara, LLC â€¢ connect@oceansniagara.com

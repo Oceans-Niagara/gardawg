@@ -28,6 +28,7 @@ pub struct VerifyOptions {
     pub rate_429: f64,
     pub max_jitter_ms: u64,
     pub udp: bool,
+    pub listen: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -72,6 +73,14 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
         .map(normalize_upstream)
         .transpose()?;
 
+    let bind_addr = opts
+        .listen
+        .clone()
+        .unwrap_or_else(|| "127.0.0.1:0".to_string());
+    if opts.listen.is_some() && opts.profile.is_none() && upstream_norm.is_none() {
+        anyhow::bail!("--listen requires --profile and/or --upstream so there is a proxy to bind");
+    }
+
     // 1. Start appropriate impairment proxy if profile or upstream is given
     if let Some(ref pid) = opts.profile {
         let prof = resolve_profile(pid, opts.custom_profiles.as_deref())
@@ -79,9 +88,9 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
         let target = upstream_norm.clone().unwrap_or_else(|| "127.0.0.1:0".to_string());
 
         if opts.udp {
-            let sock = Arc::new(UdpSocket::bind("127.0.0.1:0").await?);
+            let sock = Arc::new(UdpSocket::bind(bind_addr.as_str()).await?);
             let addr = sock.local_addr()?;
-            proxy_addr_str = Some(addr.to_string());
+            proxy_addr_str = Some(dial_addr(addr));
             let shaper = Arc::new(LinkShaper::new(ProxyTransport::Udp, prof, opts.seed));
             let sh = Arc::clone(&shaper);
             let handle = tokio::spawn(async move {
@@ -89,9 +98,9 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
             });
             link_handle = Some((handle, shaper));
         } else {
-            let listener = TcpListener::bind("127.0.0.1:0").await?;
+            let listener = TcpListener::bind(bind_addr.as_str()).await?;
             let addr = listener.local_addr()?;
-            proxy_addr_str = Some(addr.to_string());
+            proxy_addr_str = Some(dial_addr(addr));
             let shaper = Arc::new(LinkShaper::new(ProxyTransport::Tcp, prof, opts.seed));
             let sh = Arc::clone(&shaper);
             let handle = tokio::spawn(async move {
@@ -100,9 +109,9 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
             link_handle = Some((handle, shaper));
         }
     } else if let Some(ref upstream) = upstream_norm {
-        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let listener = TcpListener::bind(bind_addr.as_str()).await?;
         let addr = listener.local_addr()?;
-        proxy_addr_str = Some(addr.to_string());
+        proxy_addr_str = Some(dial_addr(addr));
         let stats = Arc::new(ChaosStats::default());
         let st = Arc::clone(&stats);
         let cfg = ChaosConfig {
@@ -136,6 +145,7 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
     if let Some(ref paddr) = proxy_addr_str {
         cmd.env("GARDAWG_PROXY_ADDR", paddr)
             .env("LINKGUARD_PROXY_ADDR", paddr)
+            .env("GARDAWG_PROXY_PORT", paddr.rsplit(':').next().unwrap_or(""))
             .env("GARDAWG_PROXY_URL", format!("http://{paddr}"));
     }
 
@@ -240,6 +250,27 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
         None
     };
 
+    if opts.udp {
+        match proxy_summary {
+            Some(ref s) if s.packets_in == 0 => diagnostics.push(RuntimeDiagnostic {
+                kind: "UDP_NO_TRAFFIC_THROUGH_PROXY".into(),
+                severity: "error".into(),
+                message: format!(
+                    "UDP proxy on {} received 0 packets during the smoke run; traffic never went through the impairment proxy, so this pass proves nothing.",
+                    proxy_addr_str.as_deref().unwrap_or("?")
+                ),
+                remediation: "Send UDP to $GARDAWG_PROXY_ADDR (host:port) or $GARDAWG_PROXY_PORT on 127.0.0.1 instead of the real peer; use --listen to pin a fixed port.".into(),
+            }),
+            None => diagnostics.push(RuntimeDiagnostic {
+                kind: "UDP_NO_PROXY".into(),
+                severity: "error".into(),
+                message: "--udp was set but no UDP proxy was started (no --profile given), so no UDP traffic was impaired or measured.".into(),
+                remediation: "Pass --profile <id> (e.g. wifi-24g-congested) together with --udp, and --upstream <host:port> for the real peer.".into(),
+            }),
+            _ => {}
+        }
+    }
+
     let chaos_summary = if let Some((handle, stats, up)) = chaos_handle {
         handle.abort();
         let snap = stats.snapshot("http", &up, opts.seed);
@@ -274,6 +305,19 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
         stdout_tail: tail_lines(&stdout_str, 20),
         stderr_tail: tail_lines(&stderr_str, 25),
     })
+}
+
+fn dial_addr(addr: std::net::SocketAddr) -> String {
+    if addr.ip().is_unspecified() {
+        let ip: std::net::IpAddr = if addr.is_ipv6() {
+            std::net::Ipv6Addr::LOCALHOST.into()
+        } else {
+            std::net::Ipv4Addr::LOCALHOST.into()
+        };
+        std::net::SocketAddr::new(ip, addr.port()).to_string()
+    } else {
+        addr.to_string()
+    }
 }
 
 async fn probe_http_once(addr: &str, path: &str, timeout: Duration) -> Result<u16, bool> {
@@ -328,6 +372,7 @@ mod tests {
                 rate_429: 0.0,
                 max_jitter_ms: 0,
                 udp: false,
+                listen: None,
             },
         )
         .await
@@ -350,6 +395,7 @@ mod tests {
                 rate_429: 0.0,
                 max_jitter_ms: 0,
                 udp: false,
+                listen: None,
             },
         )
         .await

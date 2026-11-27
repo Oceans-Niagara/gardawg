@@ -6,17 +6,105 @@ use std::path::Path;
 const START_MARKER: &str = "<!-- GARDAWG:START -->";
 const END_MARKER: &str = "<!-- GARDAWG:END -->";
 
+const OLLAMA_PROVIDER_COMMENT_BLOCK: &str = concat!(
+    "  // Local LLM template (model-agnostic): uncomment \"provider\" and set your pulled `ollama list` tag\n",
+    "  // so OpenCode stays 100% local instead of calling cloud models (Gardawg itself is always offline):\n",
+    "  // \"provider\": {\n",
+    "  //   \"ollama\": {\n",
+    "  //     \"npm\": \"@ai-sdk/openai-compatible\",\n",
+    "  //     \"name\": \"Ollama (local)\",\n",
+    "  //     \"options\": { \"baseURL\": \"http://127.0.0.1:11434/v1\" },\n",
+    "  //     \"models\": {\n",
+    "  //       \"<your-local-model-tag>\": { \"name\": \"<your-local-model-tag> (local)\" }\n",
+    "  //     }\n",
+    "  //   }\n",
+    "  // },\n"
+);
+
 pub fn sync_all(workspace: &Path, cfg: &GardawgConfig, force: bool) -> anyhow::Result<()> {
     if cfg.sync.mcp_json {
-        sync_mcp_json(&workspace.join(".mcp.json"), force)?;
+        let p = workspace.join(".mcp.json");
+        let rendered = render_mcp_json(&p, force)?;
+        fs::write(p, rendered)?;
     }
     if cfg.sync.opencode_json {
-        sync_opencode_json(&workspace.join("opencode.json"), force)?;
+        let p = workspace.join("opencode.json");
+        let rendered = render_opencode_json(&p, force)?;
+        fs::write(p, rendered)?;
     }
     if cfg.sync.agents_md {
-        sync_agents_md(&workspace.join("AGENTS.md"), cfg)?;
+        let p = workspace.join("AGENTS.md");
+        let rendered = render_agents_md(&p, cfg)?;
+        fs::write(p, rendered)?;
     }
     Ok(())
+}
+
+pub fn check_sync(workspace: &Path, cfg: &GardawgConfig) -> anyhow::Result<Vec<String>> {
+    let mut drifted = Vec::new();
+    if cfg.sync.mcp_json {
+        let p = workspace.join(".mcp.json");
+        let expected = render_mcp_json(&p, false)?;
+        let actual = fs::read_to_string(&p).unwrap_or_default();
+        if actual.replace("\r\n", "\n") != expected.replace("\r\n", "\n") {
+            drifted.push(".mcp.json".to_string());
+        }
+    }
+    if cfg.sync.opencode_json {
+        let p = workspace.join("opencode.json");
+        let expected = render_opencode_json(&p, false)?;
+        let actual = fs::read_to_string(&p).unwrap_or_default();
+        if actual.replace("\r\n", "\n") != expected.replace("\r\n", "\n") {
+            drifted.push("opencode.json".to_string());
+        }
+    }
+    if cfg.sync.agents_md {
+        let p = workspace.join("AGENTS.md");
+        let expected = render_agents_md(&p, cfg)?;
+        let actual = fs::read_to_string(&p).unwrap_or_default();
+        if actual.replace("\r\n", "\n") != expected.replace("\r\n", "\n") {
+            drifted.push("AGENTS.md".to_string());
+        }
+    }
+    Ok(drifted)
+}
+
+pub fn strip_jsonc_comments(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let chars: Vec<char> = input.chars().collect();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+    while i < chars.len() {
+        let c = chars[i];
+        if in_string {
+            out.push(c);
+            if escaped {
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if c == '"' {
+            in_string = true;
+            out.push(c);
+            i += 1;
+            continue;
+        }
+        if c == '/' && i + 1 < chars.len() && chars[i + 1] == '/' {
+            while i < chars.len() && chars[i] != '\n' {
+                i += 1;
+            }
+            continue;
+        }
+        out.push(c);
+        i += 1;
+    }
+    out
 }
 
 fn is_on_path(bin_name: &str) -> bool {
@@ -48,7 +136,7 @@ pub fn resolve_mcp_command() -> String {
     "gardawg".to_string()
 }
 
-fn sync_mcp_json(path: &Path, force: bool) -> anyhow::Result<()> {
+fn render_mcp_json(path: &Path, force: bool) -> anyhow::Result<String> {
     let mut root: Value = if path.exists() {
         let raw = fs::read_to_string(path)?;
         if raw.trim().is_empty() { json!({}) } else { serde_json::from_str(&raw)? }
@@ -93,14 +181,19 @@ fn sync_mcp_json(path: &Path, force: bool) -> anyhow::Result<()> {
     }
 
     let pretty = serde_json::to_string_pretty(&root)?;
-    fs::write(path, format!("{pretty}\n"))?;
-    Ok(())
+    Ok(format!("{pretty}\n"))
 }
 
-fn sync_opencode_json(path: &Path, force: bool) -> anyhow::Result<()> {
-    let mut root: Value = if path.exists() {
-        let raw = fs::read_to_string(path)?;
-        if raw.trim().is_empty() { json!({}) } else { serde_json::from_str(&raw)? }
+fn render_opencode_json(path: &Path, force: bool) -> anyhow::Result<String> {
+    let existing_raw = if path.exists() {
+        fs::read_to_string(path)?
+    } else {
+        String::new()
+    };
+
+    let mut root: Value = if !existing_raw.trim().is_empty() {
+        let clean = strip_jsonc_comments(&existing_raw);
+        serde_json::from_str(&clean)?
     } else {
         json!({ "$schema": "https://opencode.ai/config.json" })
     };
@@ -111,6 +204,8 @@ fn sync_opencode_json(path: &Path, force: bool) -> anyhow::Result<()> {
 
     obj.entry("$schema")
         .or_insert_with(|| Value::String("https://opencode.ai/config.json".to_string()));
+
+    let has_provider = obj.contains_key("provider");
 
     let mcp = obj
         .entry("mcp")
@@ -131,8 +226,20 @@ fn sync_opencode_json(path: &Path, force: bool) -> anyhow::Result<()> {
     }
 
     let pretty = serde_json::to_string_pretty(&root)?;
-    fs::write(path, format!("{pretty}\n"))?;
-    Ok(())
+    let out = if !has_provider {
+        if let Some(idx) = pretty.find("\n  \"mcp\":") {
+            let mut with_comment = String::with_capacity(pretty.len() + OLLAMA_PROVIDER_COMMENT_BLOCK.len() + 2);
+            with_comment.push_str(&pretty[..=idx]);
+            with_comment.push_str(OLLAMA_PROVIDER_COMMENT_BLOCK);
+            with_comment.push_str(&pretty[idx + 1..]);
+            with_comment
+        } else {
+            pretty
+        }
+    } else {
+        pretty
+    };
+    Ok(format!("{out}\n"))
 }
 
 pub fn render_agents_managed_block(cfg: &GardawgConfig) -> String {
@@ -181,7 +288,7 @@ pub fn render_agents_managed_block(cfg: &GardawgConfig) -> String {
     }
 
     if cfg.link.enabled || cfg.link.profile.is_some() {
-        let prof = cfg.link.profile.as_deref().unwrap_or("lora-sf12");
+        let prof = cfg.link.profile.as_deref().unwrap_or("wifi-24g-congested");
         bullets.push(format!(
             "- Physical-layer profile `{prof}`: never serialize JSON/text inside loops; pack binary frames (`struct.pack` / `postcard` / `DataView`) with sequence counters + CRC, batch up to link MTU, and never block async/RTOS executors."
         ));
@@ -200,7 +307,7 @@ pub fn render_agents_managed_block(cfg: &GardawgConfig) -> String {
     )
 }
 
-fn sync_agents_md(path: &Path, cfg: &GardawgConfig) -> anyhow::Result<()> {
+fn render_agents_md(path: &Path, cfg: &GardawgConfig) -> anyhow::Result<String> {
     let managed_block = render_agents_managed_block(cfg);
 
     let updated = if path.exists() {
@@ -221,8 +328,7 @@ fn sync_agents_md(path: &Path, cfg: &GardawgConfig) -> anyhow::Result<()> {
         format!("# Agent Instructions\n\n{managed_block}\n")
     };
 
-    fs::write(path, updated)?;
-    Ok(())
+    Ok(updated)
 }
 
 #[cfg(test)]
@@ -239,10 +345,15 @@ mod tests {
         sync_all(&dir, &cfg, false).unwrap();
         sync_all(&dir, &cfg, false).unwrap();
 
+        assert!(check_sync(&dir, &cfg).unwrap().is_empty());
+
         let mcp: Value = serde_json::from_str(&fs::read_to_string(dir.join(".mcp.json")).unwrap()).unwrap();
         assert!(mcp["mcpServers"]["gardawg"].is_object());
 
-        let opencode: Value = serde_json::from_str(&fs::read_to_string(dir.join("opencode.json")).unwrap()).unwrap();
+        let opencode_raw = fs::read_to_string(dir.join("opencode.json")).unwrap();
+        assert!(opencode_raw.contains("// \"provider\":"));
+        assert!(opencode_raw.contains("127.0.0.1:11434/v1"));
+        let opencode: Value = serde_json::from_str(&strip_jsonc_comments(&opencode_raw)).unwrap();
         assert_eq!(opencode["mcp"]["gardawg"]["type"], "local");
         assert_eq!(opencode["mcp"]["gardawg"]["enabled"], true);
 

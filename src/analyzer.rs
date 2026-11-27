@@ -446,6 +446,39 @@ pub fn analyze_source(
         }
     }
 
+    // Deduplicate overlapping GR002-MISSING-TIMEOUT-(JS|TS) + MISSING_ABORT_TIMEOUT on the same AST span.
+    let mut abort_by_span: std::collections::HashMap<(String, usize, usize), (Option<String>, Option<String>)> =
+        std::collections::HashMap::new();
+    for f in &findings {
+        if f.rule_id == "MISSING_ABORT_TIMEOUT" {
+            abort_by_span.insert(
+                (f.file.clone(), f.start_line, f.start_col),
+                (f.physics_law.clone(), f.remediation.clone()),
+            );
+        }
+    }
+    if !abort_by_span.is_empty() {
+        let mut gr002_spans: HashSet<(String, usize, usize)> = HashSet::new();
+        for f in &mut findings {
+            if f.rule_id == "GR002-MISSING-TIMEOUT-JS" || f.rule_id == "GR002-MISSING-TIMEOUT-TS" {
+                let key = (f.file.clone(), f.start_line, f.start_col);
+                if let Some((law, rem)) = abort_by_span.get(&key) {
+                    gr002_spans.insert(key);
+                    if f.physics_law.is_none() {
+                        f.physics_law = law.clone();
+                    }
+                    if let Some(r) = rem {
+                        f.remediation = Some(r.clone());
+                    }
+                }
+            }
+        }
+        findings.retain(|f| {
+            !(f.rule_id == "MISSING_ABORT_TIMEOUT"
+                && gr002_spans.contains(&(f.file.clone(), f.start_line, f.start_col)))
+        });
+    }
+
     Ok(findings)
 }
 
@@ -1058,7 +1091,7 @@ fn inspect_gardawg_node(
                     push_finding(
                         findings, source, lang, "GR002-MISSING-TIMEOUT-PY-SOCKET", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
-                        "`socket.socket()` created without `.settimeout(...)` — blocking recv/connect can hang forever.".into(),
+                        "`socket.socket()` created without `.settimeout(...)` â€” blocking recv/connect can hang forever.".into(),
                         None,
                         Some("Set an explicit socket timeout immediately after creation:\n```python\nsock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)\nsock.settimeout(2.0)\n```".into()),
                         None,
@@ -1601,9 +1634,20 @@ fn inspect_link_call(
                     budget.header_overhead_pct, profile.id
                 ),
                 Some("Framing Efficiency = payload / (payload + header_overhead)".into()),
-                Some(format!(
-                    "Batch readings up to <= {safe_bytes} B before transmitting:\n```python\nbuf.append(sample)\nif len(buf) >= 4:\n    sock.sendto(b\"\".join(buf), addr); buf.clear()\n```"
-                )),
+                Some(match lang {
+                    Lang::Cpp => format!(
+                        "Batch samples in a fixed C/C++ ring buffer (<= {safe_bytes} B) before transmitting:\n```c\nstatic uint8_t ring_buf[{safe_bytes}];\nstatic size_t ring_len = 0;\n// Inside loop: append sample bytes; flush once batch reaches MTU:\nif (ring_len + sample_len > sizeof(ring_buf)) {{ sendto(sock, ring_buf, ring_len, 0, addr, addrlen); ring_len = 0; }}\nmemcpy(&ring_buf[ring_len], sample, sample_len); ring_len += sample_len;\n```"
+                    ),
+                    Lang::Rust => format!(
+                        "Batch samples in a reusable buffer (<= {safe_bytes} B) before transmitting:\n```rust\nbatch.extend_from_slice(&sample);\nif batch.len() >= {safe_bytes} {{\n    sock.send(&batch)?;\n    batch.clear();\n}}\n```"
+                    ),
+                    Lang::TypeScript | Lang::JavaScript => format!(
+                        "Batch samples up to <= {safe_bytes} B before transmitting:\n```js\nbatch.push(sample);\nif (batch.length >= 4) {{ await sendBatch(batch.splice(0)); }}\n```"
+                    ),
+                    Lang::Python => format!(
+                        "Batch readings up to <= {safe_bytes} B before transmitting:\n```python\nbuf.append(sample)\nif len(buf) >= 4:\n    sock.sendto(b\"\".join(buf), addr); buf.clear()\n```"
+                    ),
+                }),
                 Some(budget),
             );
         }
@@ -1910,6 +1954,35 @@ fn b() -> usize { "2".parse::<usize>().unwrap() }
         let findings = analyze_source(src, Lang::Rust, "src/lib.rs", None, 1.0, false).unwrap();
         let lines: Vec<usize> = findings.iter().map(|f| f.start_line).collect();
         assert_eq!(lines, vec![3]);
+    }
+
+    #[test]
+    fn cpp_ring_buffer_remedy_and_js_timeout_dedup() {
+        let lora = get_profile("lora-sf12").unwrap();
+        let ino = r#"
+void loop() {
+    while (1) {
+        Serial.println("x");
+    }
+}
+"#;
+        let cpp_findings = analyze_source(ino, Lang::Cpp, "node.ino", Some(&lora), 1.0, false).unwrap();
+        let unbatched = cpp_findings
+            .iter()
+            .find(|f| f.rule_id == "UNBATCHED_SEND_IN_LOOP")
+            .expect("expected UNBATCHED_SEND_IN_LOOP");
+        let rem = unbatched.remediation.as_deref().unwrap_or("");
+        assert!(rem.contains("ring_buf"), "expected C/C++ ring_buf snippet, got: {rem}");
+        assert!(!rem.contains("```python"), "unexpected Python snippet for .ino");
+
+        let js = "async function ping(u) { return await fetch(u); }\n";
+        let js_findings = analyze_source(js, Lang::JavaScript, "client.js", Some(&lora), 1.0, false).unwrap();
+        let fetch_findings: Vec<_> = js_findings
+            .iter()
+            .filter(|f| f.rule_id == "GR002-MISSING-TIMEOUT-JS" || f.rule_id == "MISSING_ABORT_TIMEOUT")
+            .collect();
+        assert_eq!(fetch_findings.len(), 1, "expected deduplicated timeout finding, got: {fetch_findings:?}");
+        assert_eq!(fetch_findings[0].rule_id, "GR002-MISSING-TIMEOUT-JS");
     }
 }
 

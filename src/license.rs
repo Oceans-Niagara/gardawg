@@ -1,9 +1,11 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+﻿use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Live LinkGuard/Gardawg Cloudflare Worker Ed25519 public key (LG1.<payload>.<sig>).
@@ -15,11 +17,16 @@ pub enum LicenseTier {
     Free,
     Pro,
     Team,
+    Enterprise,
 }
 
 impl LicenseTier {
     pub fn is_paid(self) -> bool {
-        matches!(self, Self::Pro | Self::Team)
+        matches!(self, Self::Pro | Self::Team | Self::Enterprise)
+    }
+
+    pub fn is_team_or_higher(self) -> bool {
+        matches!(self, Self::Team | Self::Enterprise)
     }
 }
 
@@ -30,12 +37,18 @@ pub struct LicenseClaims {
     pub issued_unix: u64,
     pub expires_unix: Option<u64>,
     pub license_id: String,
+    #[serde(default)]
+    pub max_seats: Option<u32>,
+    #[serde(default)]
+    pub ci_allowed: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LicenseStatus {
     pub tier: LicenseTier,
     pub valid_paid: bool,
+    pub ci_detected: bool,
+    pub ci_allowed: bool,
     pub source: String,
     pub claims: Option<LicenseClaims>,
     pub error: Option<String>,
@@ -46,6 +59,34 @@ pub fn current_unix_secs() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
+}
+
+pub fn is_ci_environment() -> bool {
+    const CI_VARS: &[&str] = &[
+        "CI",
+        "GITHUB_ACTIONS",
+        "GITLAB_CI",
+        "JENKINS_URL",
+        "CIRCLECI",
+        "TF_BUILD",
+        "BUILDKITE",
+        "TRAVIS",
+    ];
+    CI_VARS.iter().any(|k| {
+        env::var(k)
+            .map(|v| {
+                let low = v.trim().to_ascii_lowercase();
+                !low.is_empty() && low != "0" && low != "false"
+            })
+            .unwrap_or(false)
+    })
+}
+
+pub fn claims_allow_ci(claims: &LicenseClaims) -> bool {
+    match claims.ci_allowed {
+        Some(allowed) => allowed,
+        None => claims.tier.is_team_or_higher(),
+    }
 }
 
 pub fn embedded_verifying_key() -> Result<VerifyingKey, String> {
@@ -107,6 +148,12 @@ fn default_license_paths() -> Vec<PathBuf> {
         PathBuf::from("gardawg.lic"),
         PathBuf::from("linkguard.lic"),
     ];
+    if let Ok(exe) = env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            paths.push(exe_dir.join("gardawg.lic"));
+            paths.push(exe_dir.join("linkguard.lic"));
+        }
+    }
     if let Some(appdata) = env::var_os("APPDATA") {
         let base = PathBuf::from(appdata);
         paths.push(base.join("gardawg").join("license.lic"));
@@ -121,12 +168,15 @@ fn default_license_paths() -> Vec<PathBuf> {
 }
 
 pub fn check_license_with_override(cli_key: Option<&str>) -> LicenseStatus {
+    let ci_detected = is_ci_environment();
     let key = match embedded_verifying_key() {
         Ok(k) => k,
         Err(e) => {
             return LicenseStatus {
                 tier: LicenseTier::Free,
                 valid_paid: false,
+                ci_detected,
+                ci_allowed: false,
                 source: "none".into(),
                 claims: None,
                 error: Some(e),
@@ -137,7 +187,7 @@ pub fn check_license_with_override(cli_key: Option<&str>) -> LicenseStatus {
     if let Some(raw) = cli_key {
         let trimmed = raw.trim();
         if !trimmed.is_empty() {
-            return resolve_token_or_path(trimmed, "--license-key", &key);
+            return resolve_token_or_path(trimmed, "--license-key", &key, ci_detected);
         }
     }
 
@@ -145,7 +195,7 @@ pub fn check_license_with_override(cli_key: Option<&str>) -> LicenseStatus {
         if let Ok(env_val) = env::var(env_name) {
             let trimmed = env_val.trim();
             if !trimmed.is_empty() {
-                return resolve_token_or_path(trimmed, env_name, &key);
+                return resolve_token_or_path(trimmed, env_name, &key, ci_detected);
             }
         }
     }
@@ -154,11 +204,13 @@ pub fn check_license_with_override(cli_key: Option<&str>) -> LicenseStatus {
         if path.is_file() {
             let src = path.display().to_string();
             match fs::read_to_string(&path) {
-                Ok(contents) => return evaluate_token(&contents, &src, &key),
+                Ok(contents) => return evaluate_token(&contents, &src, &key, ci_detected),
                 Err(e) => {
                     return LicenseStatus {
                         tier: LicenseTier::Free,
                         valid_paid: false,
+                        ci_detected,
+                        ci_allowed: false,
                         source: src,
                         claims: None,
                         error: Some(format!("Failed to read license file: {e}")),
@@ -171,6 +223,8 @@ pub fn check_license_with_override(cli_key: Option<&str>) -> LicenseStatus {
     LicenseStatus {
         tier: LicenseTier::Free,
         valid_paid: false,
+        ci_detected,
+        ci_allowed: false,
         source: "none".into(),
         claims: None,
         error: None,
@@ -181,30 +235,35 @@ pub fn check_license() -> LicenseStatus {
     check_license_with_override(None)
 }
 
-fn resolve_token_or_path(val: &str, label: &str, key: &VerifyingKey) -> LicenseStatus {
+fn resolve_token_or_path(val: &str, label: &str, key: &VerifyingKey, ci_detected: bool) -> LicenseStatus {
     if !val.starts_with("LG1.") && Path::new(val).is_file() {
         match fs::read_to_string(val) {
-            Ok(contents) => evaluate_token(&contents, &format!("{label} ({val})"), key),
+            Ok(contents) => evaluate_token(&contents, &format!("{label} ({val})"), key, ci_detected),
             Err(e) => LicenseStatus {
                 tier: LicenseTier::Free,
                 valid_paid: false,
+                ci_detected,
+                ci_allowed: false,
                 source: format!("{label} ({val})"),
                 claims: None,
                 error: Some(format!("Failed to read license file: {e}")),
             },
         }
     } else {
-        evaluate_token(val, label, key)
+        evaluate_token(val, label, key, ci_detected)
     }
 }
 
-fn evaluate_token(token: &str, source: &str, key: &VerifyingKey) -> LicenseStatus {
+fn evaluate_token(token: &str, source: &str, key: &VerifyingKey, ci_detected: bool) -> LicenseStatus {
     match verify_token_with_key(token, key, current_unix_secs()) {
         Ok(claims) => {
             let valid_paid = claims.tier.is_paid();
+            let ci_allowed = claims_allow_ci(&claims);
             LicenseStatus {
                 tier: claims.tier,
                 valid_paid,
+                ci_detected,
+                ci_allowed,
                 source: source.to_string(),
                 claims: Some(claims),
                 error: None,
@@ -213,11 +272,66 @@ fn evaluate_token(token: &str, source: &str, key: &VerifyingKey) -> LicenseStatu
         Err(e) => LicenseStatus {
             tier: LicenseTier::Free,
             valid_paid: false,
+            ci_detected,
+            ci_allowed: false,
             source: source.to_string(),
             claims: None,
             error: Some(e),
         },
     }
+}
+
+/// Count distinct non-bot committers in the last 90 days for offline Team seat checks.
+pub fn count_recent_git_committers(workspace: &Path) -> Option<usize> {
+    let out = Command::new("git")
+        .args(["-C", &workspace.to_string_lossy(), "shortlog", "-sne", "--since=90 days ago", "HEAD"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let mut seen: HashSet<String> = HashSet::new();
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let lower = trimmed.to_ascii_lowercase();
+        if lower.contains("[bot]")
+            || lower.contains("noreply@github.com")
+            || lower.contains("actions@github.com")
+        {
+            continue;
+        }
+        let identity = if let (Some(l), Some(r)) = (lower.rfind('<'), lower.rfind('>')) {
+            if l < r {
+                lower[l + 1..r].trim().to_string()
+            } else {
+                lower
+            }
+        } else {
+            lower
+        };
+        if !identity.is_empty() {
+            seen.insert(identity);
+        }
+    }
+    Some(seen.len())
+}
+
+fn enforce_seat_cap(claims: &LicenseClaims, workspace: &Path) -> Result<(), String> {
+    if claims.tier == LicenseTier::Team {
+        let cap = claims.max_seats.unwrap_or(6) as usize;
+        if let Some(active) = count_recent_git_committers(workspace) {
+            if active > cap {
+                return Err(format!(
+                    "Gardawg Team license allows up to {cap} active contributors (found {active} in the last 90 days via `git shortlog`). Upgrade to Gardawg Enterprise for unlimited seats at https://oceans-niagara.github.io/gardawg/#pricing"
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn require_pro(feature_name: &str) -> Result<LicenseClaims, String> {
@@ -228,12 +342,64 @@ pub fn require_pro_with_key(feature_name: &str, cli_key: Option<&str>) -> Result
     let status = check_license_with_override(cli_key);
     if status.valid_paid {
         if let Some(claims) = status.claims {
+            if status.ci_detected && !claims_allow_ci(&claims) {
+                return Err(format!(
+                    "'{feature_name}' cannot run in CI on a Pro license (Pro is for local workstations only). Upgrade to Gardawg Team (up to 6 seats + CI) or Enterprise at https://oceans-niagara.github.io/gardawg/#pricing"
+                ));
+            }
+            enforce_seat_cap(&claims, Path::new("."))?;
             return Ok(claims);
         }
     }
     let detail = status.error.map(|e| format!(" ({e})")).unwrap_or_default();
     Err(format!(
-        "'{feature_name}' requires a Pro or Team license{detail}. Pass --license-key, set GARDAWG_LICENSE_KEY / LINKGUARD_LICENSE, or place a signed key at ./gardawg.lic (or ./linkguard.lic)."
+        "'{feature_name}' requires a Pro, Team, or Enterprise license{detail}. Pass --license-key, set GARDAWG_LICENSE_KEY, or place gardawg.lic in ./ or next to the gardawg binary."
+    ))
+}
+
+pub fn require_team_with_key(
+    feature_name: &str,
+    cli_key: Option<&str>,
+    workspace: &Path,
+) -> Result<LicenseClaims, String> {
+    let status = check_license_with_override(cli_key);
+    if status.valid_paid {
+        if let Some(claims) = status.claims {
+            if !claims.tier.is_team_or_higher() {
+                return Err(format!(
+                    "'{feature_name}' requires a Gardawg Team or Enterprise license (current tier: {:?}). Upgrade at https://oceans-niagara.github.io/gardawg/#pricing",
+                    claims.tier
+                ));
+            }
+            enforce_seat_cap(&claims, workspace)?;
+            return Ok(claims);
+        }
+    }
+    let detail = status.error.map(|e| format!(" ({e})")).unwrap_or_default();
+    Err(format!(
+        "'{feature_name}' requires a Gardawg Team or Enterprise license{detail}."
+    ))
+}
+
+pub fn require_enterprise_with_key(
+    feature_name: &str,
+    cli_key: Option<&str>,
+) -> Result<LicenseClaims, String> {
+    let status = check_license_with_override(cli_key);
+    if status.valid_paid {
+        if let Some(claims) = status.claims {
+            if claims.tier != LicenseTier::Enterprise {
+                return Err(format!(
+                    "'{feature_name}' requires a Gardawg Enterprise license (current tier: {:?}). Contact connect@oceansniagara.com",
+                    claims.tier
+                ));
+            }
+            return Ok(claims);
+        }
+    }
+    let detail = status.error.map(|e| format!(" ({e})")).unwrap_or_default();
+    Err(format!(
+        "'{feature_name}' requires a Gardawg Enterprise license{detail}."
     ))
 }
 
@@ -262,17 +428,44 @@ mod tests {
             issued_unix: 1_700_000_000,
             expires_unix: Some(1_800_000_000),
             license_id: "lic-001".into(),
+            max_seats: Some(2),
+            ci_allowed: Some(false),
         };
         let token = mint_test_token(&sk, &claims);
 
         let verified = verify_token_with_key(&token, &vk, 1_750_000_000).unwrap();
         assert_eq!(verified.tier, LicenseTier::Pro);
         assert_eq!(verified.holder, "Test Lab");
+        assert!(!claims_allow_ci(&verified));
 
         assert!(verify_token_with_key(&token, &vk, 1_900_000_000).is_err());
 
         let mut tampered = token.clone();
         tampered.replace_range(6..7, if &token[6..7] == "A" { "B" } else { "A" });
         assert!(verify_token_with_key(&tampered, &vk, 1_750_000_000).is_err());
+    }
+
+    #[test]
+    fn enterprise_and_team_allow_ci() {
+        let team = LicenseClaims {
+            tier: LicenseTier::Team,
+            holder: "Acme".into(),
+            issued_unix: 1_700_000_000,
+            expires_unix: None,
+            license_id: "t-1".into(),
+            max_seats: Some(6),
+            ci_allowed: Some(true),
+        };
+        let ent = LicenseClaims {
+            tier: LicenseTier::Enterprise,
+            holder: "BigCorp".into(),
+            issued_unix: 1_700_000_000,
+            expires_unix: None,
+            license_id: "e-1".into(),
+            max_seats: None,
+            ci_allowed: None,
+        };
+        assert!(claims_allow_ci(&team));
+        assert!(claims_allow_ci(&ent));
     }
 }

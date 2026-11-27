@@ -250,6 +250,7 @@ async fn handle_tool_call(
             }
             let cfg = GardawgConfig::load(workspace, None).unwrap_or_default();
             let opts = VerifyOptions {
+                listen: None,
                 command: cmd,
                 profile: args["profile"].as_str().map(|s| s.to_string()),
                 custom_profiles: custom_profiles.map(|p| p.to_path_buf()),

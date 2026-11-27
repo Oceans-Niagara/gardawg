@@ -1,4 +1,4 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+﻿use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use clap::{Parser, Subcommand};
 use ed25519_dalek::{Signer, SigningKey};
 use rand::rngs::OsRng;
@@ -32,6 +32,10 @@ enum Cmd {
         days: Option<u64>,
         #[arg(long, default_value = "lic-1")]
         id: String,
+        #[arg(long)]
+        max_seats: Option<u32>,
+        #[arg(long)]
+        ci_allowed: Option<bool>,
     },
 }
 
@@ -42,6 +46,8 @@ struct Claims {
     issued_unix: u64,
     expires_unix: Option<u64>,
     license_id: String,
+    max_seats: Option<u32>,
+    ci_allowed: bool,
 }
 
 fn main() {
@@ -65,7 +71,7 @@ fn main() {
             println!("Saved private key to {} (NEVER commit this file!)", out.display());
             println!("pub const EMBEDDED_PUBLIC_KEY_B64: &str = \"{vk_b64}\";");
         }
-        Cmd::Mint { key, tier, holder, days, id } => {
+        Cmd::Mint { key, tier, holder, days, id, max_seats, ci_allowed } => {
             let sk_raw = fs::read_to_string(&key).expect("Failed to read private key");
             let sk_bytes = URL_SAFE_NO_PAD
                 .decode(sk_raw.trim())
@@ -73,13 +79,22 @@ fn main() {
             let sk_arr: [u8; 32] = sk_bytes.try_into().expect("Private key must be 32 bytes");
             let sk = SigningKey::from_bytes(&sk_arr);
 
+            let tier_norm = tier.to_lowercase();
+            let (def_seats, def_ci) = match tier_norm.as_str() {
+                "enterprise" => (None, true),
+                "team" => (Some(6), true),
+                _ => (Some(2), false),
+            };
+
             let expires_unix = days.map(|d| now + d * 86_400);
             let claims = Claims {
-                tier: tier.to_lowercase(),
+                tier: tier_norm,
                 holder,
                 issued_unix: now,
                 expires_unix,
                 license_id: id,
+                max_seats: max_seats.or(def_seats),
+                ci_allowed: ci_allowed.unwrap_or(def_ci),
             };
 
             let payload_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&claims).unwrap());

@@ -13,7 +13,31 @@ pub struct ResilienceOptions {
     pub keploy_cmd: Option<String>,
 }
 
-pub async fn run_resilience_suite(workspace: &Path, opts: ResilienceOptions) -> anyhow::Result<()> {
+pub async fn run_resilience_suite(workspace: &Path, mut opts: ResilienceOptions) -> anyhow::Result<()> {
+    if opts.openapi_spec.is_none() {
+        if let Some(found) = crate::config::detect_workspace(workspace).openapi_spec {
+            eprintln!("Resilience: auto-detected OpenAPI spec '{found}'.");
+            opts.openapi_spec = Some(found);
+        }
+    }
+    let keploy_dir = workspace.join("keploy").is_dir();
+    if opts.openapi_spec.is_none() && opts.keploy_cmd.is_none() {
+        eprintln!("Resilience: nothing to run under chaos (seed {}).", opts.seed);
+        if keploy_dir {
+            eprintln!("  - Found a keploy/ folder, but no app command is configured. Set [resilience] keploy_cmd = \"<start your app>\" in gardawg.toml.");
+        } else {
+            eprintln!("  - No OpenAPI spec found (checked --openapi, [resilience] openapi_spec, and openapi.yaml/.yml/.json within 3 levels).");
+            eprintln!("  - No keploy/ test folder found.");
+        }
+        eprintln!("  Example: gardawg resilience --openapi openapi.yaml   (requires `schemathesis` on PATH)");
+        return Ok(());
+    }
+    if let Some(spec) = &opts.openapi_spec {
+        eprintln!("Resilience: fuzzing OpenAPI spec '{spec}' via Schemathesis through the chaos proxy.");
+    }
+    if opts.keploy_cmd.is_some() {
+        eprintln!("Resilience: replaying Keploy tests through the chaos proxy.");
+    }
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let proxy_addr = listener.local_addr()?;
     let proxy_url = format!("http://{proxy_addr}");
