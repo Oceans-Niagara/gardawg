@@ -256,6 +256,7 @@ pub fn analyze_source(
     assumed_hz: f64,
     pedantic: bool,
 ) -> anyhow::Result<Vec<Finding>> {
+    let source = source.strip_prefix('\u{feff}').unwrap_or(source);
     let mut parser = Parser::new();
     match lang {
         Lang::Python => parser
@@ -1001,10 +1002,13 @@ fn inspect_gardawg_node(
 
         Lang::Python => {
             // GR001: typed float annotation on money identifier
-            if kind == "typed_parameter" || kind == "assignment" {
+            if kind == "typed_parameter" || kind == "assignment" || kind == "typed_default_parameter" {
                 if let Some(ty_node) = node.child_by_field_name("type") {
                     let ty = ty_node.utf8_text(source.as_bytes()).unwrap_or("").trim();
-                    if ty == "float" {
+                    let has_float = ty == "float"
+                        || ty.split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                            .any(|tok| tok == "float");
+                    if has_float {
                         let lhs = node
                             .child_by_field_name("left")
                             .or_else(|| node.named_child(0))
@@ -1038,7 +1042,7 @@ fn inspect_gardawg_node(
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
                         "`except ...: pass` silently swallows failures.".into(),
                         None,
-                        Some("Log and handle or re-raise the exception:\n```python\nexcept OSError as exc:\n    logging.warning(\"I/O error: %s\", exc)\n```".into()),
+                        Some("Log and handle or re-raise the exception:\n```python\nimport logging\n\nexcept OSError as exc:\n    logging.warning(\"I/O error: %s\", exc)\n```".into()),
                         None,
                     );
                 }
@@ -1424,9 +1428,15 @@ fn is_rust_critical_io_expr(val: &str) -> bool {
 }
 
 fn missing_idempotency_nearby(src: &str, offset: usize) -> bool {
-    let start = offset.saturating_sub(300);
-    let end = (offset + 400).min(src.len());
-    let window = &src[start..end].to_ascii_lowercase();
+    let mut start = offset.saturating_sub(300).min(src.len());
+    while start > 0 && !src.is_char_boundary(start) {
+        start -= 1;
+    }
+    let mut end = (offset + 400).min(src.len());
+    while end < src.len() && !src.is_char_boundary(end) {
+        end += 1;
+    }
+    let window = src[start..end].to_ascii_lowercase();
     !(window.contains("idempotency") || window.contains("idempotent"))
 }
 

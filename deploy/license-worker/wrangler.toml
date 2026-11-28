@@ -5,6 +5,6 @@ compatibility_date = "2024-11-01"
 [vars]
 FROM_EMAIL = "Gardawg <connect@oceansniagara.com>"
 SUPPORT_EMAIL = "connect@oceansniagara.com"
-PRO_PRICE_ID = "price_1UehoPJhBeJNt7bSAKW0N8tW"
-TEAM_PRICE_ID = "price_1Uehq1JhBeJNt7bSJtLjKVrp"
+PRO_PRICE_ID = "price_1UgUewJhBeJNt7bSRoPcruv7"
+TEAM_PRICE_ID = "price_1UgUeTJhBeJNt7bSM3yrRq6I"
 ALLOWED_ORIGIN = "https://oceansniagara.com,https://www.oceansniagara.com,https://oceans-niagara.github.io"

@@ -73,6 +73,22 @@ jobs:
           cp "target/${{ matrix.target }}/release/gardawg${{ matrix.ext }}" \
              "dist/gardawg${{ matrix.tag }}-${{ matrix.suffix }}${{ matrix.ext }}"
 
+      - name: Sign Windows binary (when WINDOWS_PFX_BASE64 secret is configured)
+        if: runner.os == 'Windows' && env.WINDOWS_PFX_BASE64 != ''
+        shell: pwsh
+        env:
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_PFX_BASE64 }}
+          WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_PFX_PASSWORD }}
+        run: |
+          $pfxPath = "$env:RUNNER_TEMP\codesign.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_PFX_BASE64))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found on Windows runner" }
+          $exe = "dist/gardawg${{ matrix.tag }}-${{ matrix.suffix }}${{ matrix.ext }}"
+          & $signtool.FullName sign /f $pfxPath /p $env:WINDOWS_PFX_PASSWORD /fd SHA256 /tr http://digicert.com /td SHA256 $exe
+          Remove-Item -Force $pfxPath
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:

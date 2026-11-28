@@ -15,7 +15,7 @@ const OLLAMA_PROVIDER_COMMENT_BLOCK: &str = concat!(
     "  //     \"name\": \"Ollama (local)\",\n",
     "  //     \"options\": { \"baseURL\": \"http://127.0.0.1:11434/v1\" },\n",
     "  //     \"models\": {\n",
-    "  //       \"<your-local-model-tag>\": { \"name\": \"<your-local-model-tag> (local)\" }\n",
+    "  //       \"<your-local-model-tag>\": { \"name\": \"<your-local-model-tag> (local)\", \"tool_call\": true }\n",
     "  //     }\n",
     "  //   }\n",
     "  // },\n"

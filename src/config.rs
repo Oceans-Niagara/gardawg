@@ -143,9 +143,17 @@ impl Default for AstConfig {
             enabled: true,
             exclude: vec![
                 "target/**".to_string(),
+                "**/target/**".to_string(),
                 "node_modules/**".to_string(),
+                "**/node_modules/**".to_string(),
                 ".venv/**".to_string(),
+                "**/.venv/**".to_string(),
                 "dist/**".to_string(),
+                "**/dist/**".to_string(),
+                "build/**".to_string(),
+                "**/build/**".to_string(),
+                ".next/**".to_string(),
+                "**/.next/**".to_string(),
             ],
         }
     }
@@ -423,7 +431,7 @@ fail_on = "error" # "error" | "warning"
 
 [ast]
 enabled = true
-exclude = ["target/**", "node_modules/**", ".venv/**", "dist/**"]
+exclude = ["target/**", "**/target/**", "node_modules/**", "**/node_modules/**", ".venv/**", "**/.venv/**", "dist/**", "**/dist/**", "build/**", "**/build/**", ".next/**", "**/.next/**"]
 
 [gate]
 rust = {}

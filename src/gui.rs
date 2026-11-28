@@ -51,17 +51,18 @@ pub fn run_dashboard_with_profiles(
     let synth_default_on = target.is_none();
     let (synth_tx, mut synth_rx) = watch::channel((synth_default_on, 64_usize, 5.0_f64));
 
+    spawn_metrics_sampler(Arc::clone(&shaper), metrics_tx.clone(), profile_rx.clone());
+    let mut proxy_task: Option<tokio::task::JoinHandle<()>> = None;
     if let Some(target_addr) = target.clone() {
         let sh = Arc::clone(&shaper);
         let mtx = metrics_tx.clone();
         let prx = profile_rx.clone();
-        tokio::spawn(async move {
-            if let Err(e) = run_proxy_live(&listen, &target_addr, sh, transport, mtx, prx).await {
+        let l_addr = listen.clone();
+        proxy_task = Some(tokio::spawn(async move {
+            if let Err(e) = run_proxy_live(&l_addr, &target_addr, sh, transport, mtx, prx).await {
                 eprintln!("[gui proxy error] {e}");
             }
-        });
-    } else {
-        spawn_metrics_sampler(Arc::clone(&shaper), metrics_tx, profile_rx);
+        }));
     }
 
     let synth_shaper = Arc::clone(&shaper);
@@ -101,17 +102,25 @@ pub fn run_dashboard_with_profiles(
         selected_profile_idx,
         profile: initial_profile,
         profile_tx,
+        profile_rx,
+        metrics_tx,
         metrics_rx,
+        shaper,
         synth_tx,
         synth_enabled: synth_default_on,
         synth_bytes: 64,
         synth_hz: 5.0,
+        live_mode: target.is_some(),
+        listen_input: listen,
+        target_input: target.clone().unwrap_or_else(|| "127.0.0.1:8080".to_string()),
+        udp_mode: udp,
+        proxy_task,
         history: VecDeque::with_capacity(MAX_PLOT_SAMPLES),
         full_capture: Vec::new(),
         status_msg: if let Some(t) = target {
             format!("Live proxy active -> {t}")
         } else {
-            "Simulator & calculator active (toggle Synthetic Load or pass --target to proxy live traffic)".into()
+            "Standalone Simulator active (use Mode switcher above to start a Live Proxy)".into()
         },
         last_timestamp: -1.0,
     };
@@ -136,11 +145,19 @@ struct DashboardApp {
     selected_profile_idx: usize,
     profile: LinkProfile,
     profile_tx: watch::Sender<LinkProfile>,
+    profile_rx: watch::Receiver<LinkProfile>,
+    metrics_tx: watch::Sender<ProxyMetrics>,
     metrics_rx: watch::Receiver<ProxyMetrics>,
+    shaper: Arc<LinkShaper>,
     synth_tx: watch::Sender<(bool, usize, f64)>,
     synth_enabled: bool,
     synth_bytes: usize,
     synth_hz: f64,
+    live_mode: bool,
+    listen_input: String,
+    target_input: String,
+    udp_mode: bool,
+    proxy_task: Option<tokio::task::JoinHandle<()>>,
     history: VecDeque<ProxyMetrics>,
     full_capture: Vec<ProxyMetrics>,
     status_msg: String,
@@ -190,8 +207,57 @@ impl eframe::App for DashboardApp {
                     }
                 }
                 ui.separator();
+                ui.label("Mode:");
+                if ui.selectable_label(!self.live_mode, "Standalone Simulator").clicked() && self.live_mode {
+                    if let Some(handle) = self.proxy_task.take() {
+                        handle.abort();
+                    }
+                    self.live_mode = false;
+                    self.synth_enabled = true;
+                    let _ = self.synth_tx.send((true, self.synth_bytes, self.synth_hz));
+                    self.status_msg = "Switched to Standalone Simulator".into();
+                }
+                if ui.selectable_label(self.live_mode, "Live Proxy").clicked() && !self.live_mode {
+                    self.live_mode = true;
+                    self.synth_enabled = false;
+                    let _ = self.synth_tx.send((false, self.synth_bytes, self.synth_hz));
+                    self.status_msg = "Live Proxy mode selected ? configure Listen/Target and click Start Proxy".into();
+                }
+                ui.separator();
                 ui.label(format!("Licensed to: {}", self.holder));
             });
+            if self.live_mode {
+                ui.separator();
+                ui.horizontal(|ui| {
+                    ui.label("Listen:");
+                    ui.add(egui::TextEdit::singleline(&mut self.listen_input).desired_width(130.0));
+                    ui.label("Target:");
+                    ui.add(egui::TextEdit::singleline(&mut self.target_input).desired_width(130.0));
+                    ui.checkbox(&mut self.udp_mode, "UDP");
+                    let running = self.proxy_task.is_some();
+                    if !running {
+                        if ui.button("Start Proxy").clicked() {
+                            let sh = Arc::clone(&self.shaper);
+                            let mtx = self.metrics_tx.clone();
+                            let prx = self.profile_rx.clone();
+                            let l_addr = self.listen_input.trim().to_string();
+                            let t_addr = self.target_input.trim().to_string();
+                            let tr = if self.udp_mode { ProxyTransport::Udp } else { ProxyTransport::Tcp };
+                            self.proxy_task = Some(tokio::spawn(async move {
+                                if let Err(e) = run_proxy_live(&l_addr, &t_addr, sh, tr, mtx, prx).await {
+                                    eprintln!("[gui proxy error] {e}");
+                                }
+                            }));
+                            self.status_msg = format!("Live proxy listening on {} -> {}", self.listen_input, self.target_input);
+                        }
+                    } else if ui.button("Stop Proxy").clicked() {
+                        if let Some(handle) = self.proxy_task.take() {
+                            handle.abort();
+                        }
+                        self.status_msg = "Live proxy stopped".into();
+                    }
+                });
+            }
         });
 
         egui::SidePanel::left("controls")

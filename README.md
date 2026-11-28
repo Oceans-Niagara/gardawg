@@ -78,7 +78,7 @@ gardawg mcp
 
 ## Desktop GUI (`gardawg-gui`)
 
-Download the `-gui` binary (or build with `--features gui`). Launch it in standalone interactive calculator/simulator mode (no `--target` or arguments required — just double-click or run `gardawg-gui`), or proxy live TCP/UDP traffic while hot-swapping link profiles from the top toolbar dropdown:
+Download the `-gui` binary (or build with `--features gui`). Launch it with no arguments (`gardawg-gui`) and use the top toolbar **Mode** switcher to toggle anytime between **Standalone Simulator** and **Live Proxy** (with editable Listen/Target endpoints and TCP/UDP selection), or pass `--target` on the CLI to start directly in live proxy mode:
 
 ```powershell
 # Standalone simulator & interactive payload calculator (no --target needed)
@@ -88,12 +88,13 @@ Download the `-gui` binary (or build with `--features gui`). Launch it in standa
 .\gardawg-gui-windows-x86_64.exe gui --udp --listen 127.0.0.1:9000 --target 127.0.0.1:9001 --profile ble-1m
 ```
 
-## AI Agents & Local Ollama
+## AI Agents (MCP) & Local Ollama
 
-Gardawg itself is 100% offline — your host coding CLI (OpenCode, Claude Code, Cursor, etc.) chooses which LLM runs.
+Gardawg itself is 100% offline ? your host coding CLI (OpenCode, Claude Code, Cursor, Windsurf, etc.) chooses which LLM runs.
 
-* **Model-agnostic `opencode.json`:** `gardawg init` includes a commented local Ollama `"provider"` template (`http://127.0.0.1:11434/v1`) in `opencode.json` so you can uncomment it with any `ollama list` tag and stay 100% local instead of hitting cloud models.
-* **Built-in single-file repair loop (`gardawg fix`):** feed `gardawg check` findings + remedies straight to small local Ollama models (1.5B–3B) without multi-tool agent overhead:
+* **Primary Workflow ? Agentic MCP Guardrails (`AGENTS.md` + `.mcp.json` / `opencode.json`):** `gardawg init` wires Gardawg's stdio MCP server into your project and writes a 3-step `AGENTS.md` contract (`evaluate_payload` -> `gardawg_check` -> `verify_runtime`). Pair it with OpenCode's built-in models or any tool-capable coding model so your agent checks link budgets before designing frames, fixes AST findings after every edit, and smoke-tests through the impairment proxy automatically.
+* **100% Local Ollama in `opencode.json`:** `gardawg init` includes a commented Ollama `"provider"` template (`http://127.0.0.1:11434/v1` with `"tool_call": true`) in `opencode.json` so you can uncomment it with any tool-capable `ollama list` tag.
+* **Lightweight CLI Repair Helper (`gardawg fix`):** for localized single-file fixes (such as adding missing `timeout=` arguments or moving hardcoded secrets to `os.environ`) using small local Ollama models (1.5B?3B) without full agentic overhead:
 
 ```bash
 gardawg fix --model ollama/qwen2.5-coder:3b

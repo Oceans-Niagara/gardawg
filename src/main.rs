@@ -117,7 +117,7 @@ enum Commands {
         #[arg(long)]
         pedantic: bool,
         /// Physical-layer profile ID (e.g. lora-sf12, ble-1m, wifi-24g-congested)
-        #[arg(short, long)]
+        #[arg(short, long, alias = "link-profile")]
         profile: Option<String>,
         /// Assumed transmission rate in Hz when not inferred from loop sleep/delay
         #[arg(long)]
@@ -178,7 +178,7 @@ enum Commands {
         #[arg(long)]
         cmd: String,
         /// Optional physical-layer link profile (e.g. lora-sf12)
-        #[arg(short, long)]
+        #[arg(short, long, alias = "link-profile")]
         profile: Option<String>,
         /// Optional target server address (e.g. 127.0.0.1:8080 or http://localhost:8080)
         #[arg(long)]
@@ -232,7 +232,7 @@ enum Commands {
         #[arg(long)]
         file: Option<PathBuf>,
         /// Optional physical-layer link profile
-        #[arg(short, long)]
+        #[arg(short, long, alias = "link-profile")]
         profile: Option<String>,
         /// Maximum number of files to attempt per run
         #[arg(long, default_value_t = 5)]

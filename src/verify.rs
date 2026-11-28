@@ -150,6 +150,7 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
     }
 
     let child = cmd.spawn()?;
+    let child_pid = child.id();
     let wait_dur = Duration::from_secs(opts.duration_secs.max(1));
 
     let mut probe_requests = 0usize;
@@ -200,13 +201,19 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
         }
         Err(_) => {
             timed_out_process = true;
-            // Daemon / loop script ran for full smoke window cleanly; kill & collect output?
-            // Note: wait_with_output consumed child on timeout branch? No, tokio::time::timeout drops future.
-            // Better: wait on child.wait() first if daemon, or kill. Since wait_with_output takes ownership,
-            // we treat timeout on a continuous daemon as expected when no crash occurred.
+            kill_process_tree(child_pid);
+            if opts.upstream.is_none() && opts.probe_path.is_none() {
+                diagnostics.push(RuntimeDiagnostic {
+                    kind: "PROCESS_TIMEOUT".into(),
+                    severity: "error".into(),
+                    message: format!("Command exceeded {}s verify window without exiting.", wait_dur.as_secs()),
+                    remediation: "Ensure network sockets/HTTP clients have explicit timeouts or pass --upstream when testing a long-running daemon.".into(),
+                });
+            }
             (Vec::new(), Vec::new())
         }
     };
+    kill_process_tree(child_pid);
 
     let stdout_str = String::from_utf8_lossy(&output.0).to_string();
     let stderr_str = String::from_utf8_lossy(&output.1).to_string();
@@ -249,6 +256,22 @@ pub async fn run_verify(workspace: &Path, opts: VerifyOptions) -> anyhow::Result
     } else {
         None
     };
+
+    if !opts.udp {
+        if let Some(ref s) = proxy_summary {
+            if s.packets_in == 0 && opts.upstream.is_none() {
+                diagnostics.push(RuntimeDiagnostic {
+                    kind: "PROXY_NO_TRAFFIC".into(),
+                    severity: "error".into(),
+                    message: format!(
+                        "Link proxy on {} received 0 packets during the smoke run; traffic never went through the impairment proxy.",
+                        proxy_addr_str.as_deref().unwrap_or("?")
+                    ),
+                    remediation: "Connect your client to $GARDAWG_PROXY_ADDR (host:port) or $GARDAWG_PROXY_PORT on 127.0.0.1 instead of bypassing the proxy.".into(),
+                });
+            }
+        }
+    }
 
     if opts.udp {
         match proxy_summary {
@@ -405,3 +428,23 @@ mod tests {
     }
 }
 
+
+fn kill_process_tree(pid: Option<u32>) {
+    let Some(pid) = pid else { return };
+    #[cfg(windows)]
+    {
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/T", "/PID", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = std::process::Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
