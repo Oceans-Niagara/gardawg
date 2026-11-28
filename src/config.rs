@@ -426,7 +426,7 @@ enabled = false
     format!(
         r#"[project]
 name = "{project_name}"
-profile = "{}" # "general" | "fintech" | "frontend" | "web-api" | "embedded"
+profile = "{}" # "general" | "fintech" | "frontend" | "web-api" | "embedded" (custom RF profiles: [[profile]] in profiles.toml)
 fail_on = "error" # "error" | "warning"
 
 [ast]

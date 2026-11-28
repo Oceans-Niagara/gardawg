@@ -66,7 +66,12 @@ pub async fn run_resilience_suite(workspace: &Path, mut opts: ResilienceOptions)
             ])
             .current_dir(workspace)
             .status()
-            .await?;
+            .await
+            .map_err(|e| if e.kind() == std::io::ErrorKind::NotFound {
+                anyhow::anyhow!("`schemathesis` not found on PATH ? install with: pip install schemathesis")
+            } else {
+                anyhow::anyhow!("Failed to run schemathesis: {e}")
+            })?;
 
         if !status.success() {
             proxy_task.abort();

@@ -81,7 +81,22 @@ pub fn apply_baseline_ratchet(
     };
     require_pro_with_key("CI Regression Baseline (--baseline)", cli_key)
         .map_err(|e| anyhow::anyhow!(e))?;
-    let raw = fs::read_to_string(bpath)?;
+    let bytes = fs::read(bpath)?;
+    let raw = if bytes.starts_with(&[0xFF, 0xFE]) {
+        let u16s: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        String::from_utf16(&u16s)?
+    } else if bytes.starts_with(&[0xFE, 0xFF]) {
+        let u16s: Vec<u16> = bytes[2..]
+            .chunks_exact(2)
+            .map(|c| u16::from_be_bytes([c[0], c[1]]))
+            .collect();
+        String::from_utf16(&u16s)?
+    } else {
+        String::from_utf8(bytes)?
+    };
     let parsed: BaselineFile = serde_json::from_str(raw.trim_start_matches('\u{feff}'))?;
     Ok(filter_against_baseline(current, &parsed.findings))
 }

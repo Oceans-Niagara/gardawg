@@ -128,6 +128,9 @@ enum Commands {
         /// Optional baseline JSON report (Pro/Team: fail only on new regressions)
         #[arg(long)]
         baseline: Option<PathBuf>,
+        /// Optional output file path (writes report in UTF-8 directly)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
         /// Enterprise: run the AST/link scan against several profiles (comma-separated IDs) and print a matrix
         #[arg(long, value_delimiter = ',')]
         profile_matrix: Vec<String>,
@@ -395,6 +398,7 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             hz,
             budgets,
             baseline,
+            output,
             profile_matrix,
         } => {
             if !cfg.agents.custom_rules.is_empty() {
@@ -542,7 +546,12 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
 
             match format {
                 OutputFormat::Json => {
-                    println!("{}", serde_json::to_string_pretty(&report)?);
+                    let rendered = serde_json::to_string_pretty(&report)?;
+                    if let Some(ref out_path) = output {
+                        std::fs::write(out_path, format!("{rendered}\n"))?;
+                    } else {
+                        println!("{rendered}");
+                    }
                 }
                 OutputFormat::Sarif => {
                     let failed_payloads: Vec<_> = report

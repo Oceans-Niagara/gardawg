@@ -52,15 +52,19 @@ pub fn run_dashboard_with_profiles(
     let (synth_tx, mut synth_rx) = watch::channel((synth_default_on, 64_usize, 5.0_f64));
 
     spawn_metrics_sampler(Arc::clone(&shaper), metrics_tx.clone(), profile_rx.clone());
+    let proxy_err = Arc::new(std::sync::Mutex::new(None::<String>));
     let mut proxy_task: Option<tokio::task::JoinHandle<()>> = None;
     if let Some(target_addr) = target.clone() {
         let sh = Arc::clone(&shaper);
         let mtx = metrics_tx.clone();
         let prx = profile_rx.clone();
         let l_addr = listen.clone();
+        let perr = Arc::clone(&proxy_err);
         proxy_task = Some(tokio::spawn(async move {
             if let Err(e) = run_proxy_live(&l_addr, &target_addr, sh, transport, mtx, prx).await {
-                eprintln!("[gui proxy error] {e}");
+                if let Ok(mut guard) = perr.lock() {
+                    *guard = Some(format!("Proxy error: {e}"));
+                }
             }
         }));
     }
@@ -115,6 +119,7 @@ pub fn run_dashboard_with_profiles(
         target_input: target.clone().unwrap_or_else(|| "127.0.0.1:8080".to_string()),
         udp_mode: udp,
         proxy_task,
+        proxy_err,
         history: VecDeque::with_capacity(MAX_PLOT_SAMPLES),
         full_capture: Vec::new(),
         status_msg: if let Some(t) = target {
@@ -158,6 +163,7 @@ struct DashboardApp {
     target_input: String,
     udp_mode: bool,
     proxy_task: Option<tokio::task::JoinHandle<()>>,
+    proxy_err: Arc<std::sync::Mutex<Option<String>>>,
     history: VecDeque<ProxyMetrics>,
     full_capture: Vec<ProxyMetrics>,
     status_msg: String,
@@ -220,8 +226,17 @@ impl eframe::App for DashboardApp {
                 if ui.selectable_label(self.live_mode, "Live Proxy").clicked() && !self.live_mode {
                     self.live_mode = true;
                     self.synth_enabled = false;
+                    self.history.clear();
                     let _ = self.synth_tx.send((false, self.synth_bytes, self.synth_hz));
                     self.status_msg = "Live Proxy mode selected ? configure Listen/Target and click Start Proxy".into();
+                }
+                if let Ok(mut guard) = self.proxy_err.lock() {
+                    if let Some(err_msg) = guard.take() {
+                        self.status_msg = err_msg;
+                        if let Some(h) = self.proxy_task.take() {
+                            h.abort();
+                        }
+                    }
                 }
                 ui.separator();
                 ui.label(format!("Licensed to: {}", self.holder));
@@ -243,9 +258,13 @@ impl eframe::App for DashboardApp {
                             let l_addr = self.listen_input.trim().to_string();
                             let t_addr = self.target_input.trim().to_string();
                             let tr = if self.udp_mode { ProxyTransport::Udp } else { ProxyTransport::Tcp };
+                            let perr = Arc::clone(&self.proxy_err);
+                            self.history.clear();
                             self.proxy_task = Some(tokio::spawn(async move {
                                 if let Err(e) = run_proxy_live(&l_addr, &t_addr, sh, tr, mtx, prx).await {
-                                    eprintln!("[gui proxy error] {e}");
+                                    if let Ok(mut guard) = perr.lock() {
+                                        *guard = Some(format!("Proxy error: {e}"));
+                                    }
                                 }
                             }));
                             self.status_msg = format!("Live proxy listening on {} -> {}", self.listen_input, self.target_input);

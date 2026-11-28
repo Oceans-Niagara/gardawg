@@ -973,17 +973,17 @@ fn inspect_gardawg_node(
                     .child_by_field_name("function")
                     .and_then(|n| n.utf8_text(source.as_bytes()).ok())
                     .unwrap_or("");
-                if callee == "reqwest::Client::new" {
+                if callee == "reqwest::Client::new" || callee == "reqwest::blocking::get" || callee == "reqwest::get" {
                     push_finding(
                         findings, source, lang, "GR002-MISSING-TIMEOUT-RUST", "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
-                        "`reqwest::Client::new()` has no default request timeout.".into(),
+                        format!("`{callee}()` has no request timeout configured."),
                         None,
                         Some("Configure an explicit timeout:\n```rust\nlet client = reqwest::Client::builder().timeout(Duration::from_secs(10)).build()?;\n```".into()),
                         None,
                     );
                 }
-                if callee.ends_with(".unwrap")
+                if (callee.ends_with(".unwrap") || callee.ends_with(".expect"))
                     && !ctx.in_rust_test_mod
                     && !is_test_or_example_path(file_label)
                     && !source[..node.start_byte()].contains("#[cfg(test)]")
@@ -1086,6 +1086,26 @@ fn inspect_gardawg_node(
                         format!("`{callee}()` called without explicit `timeout=`."),
                         None,
                         Some("Pass `timeout=10.0` or use `httpx.Client(timeout=10.0)`.".into()),
+                        None,
+                    );
+                }
+                if matches!(callee, "urllib.request.urlopen" | "urlopen") && !text.contains("timeout") {
+                    push_finding(
+                        findings, source, lang, "GR002-MISSING-TIMEOUT-PY", "gardawg-ast",
+                        Severity::Error, "high", file_label, line, col, snippet.clone(),
+                        "`urllib.request.urlopen()` called without explicit `timeout=` (can hang indefinitely).".into(),
+                        None,
+                        Some("Pass `timeout=10.0` to `urllib.request.urlopen(url, timeout=10.0)`.".into()),
+                        None,
+                    );
+                }
+                if callee.contains("__builtins__") && (callee.contains("eval") || callee.contains("exec")) {
+                    push_finding(
+                        findings, source, lang, "GR006-UNSAFE-EXEC-PY", "gardawg-ast",
+                        Severity::Error, "critical", file_label, line, col, snippet.clone(),
+                        "Indirect dynamic `eval`/`exec` lookup executes arbitrary code.".into(),
+                        None,
+                        Some("Use `ast.literal_eval()` or an explicit operator/handler map.".into()),
                         None,
                     );
                 }
@@ -1197,19 +1217,33 @@ fn inspect_gardawg_node(
                 );
             }
 
-            // GR004: empty catch block
+            // GR001: TS/JS property_signature with `: number` on monetary identifier
+            if kind == "property_signature" && text.contains(": number") && is_money_name(text) {
+                push_finding(
+                    findings, source, lang, &format!("GR001-FLOAT-MONEY-{sfx}"), "gardawg-ast",
+                    Severity::Warning, "medium", file_label, line, col, snippet.clone(),
+                    "Floating-point `number` type used on monetary/quantity property.".into(),
+                    None,
+                    Some("Represent currency in integer minor units (cents) or `decimal.js`.".into()),
+                    None,
+                );
+            }
+
+            // GR004: empty or comment-only catch block
             if kind == "catch_clause" {
-                let body_txt = node
+                let has_stmt = node
                     .child_by_field_name("body")
-                    .and_then(|b| b.utf8_text(source.as_bytes()).ok())
-                    .unwrap_or("")
-                    .trim();
-                let inner = body_txt.trim_start_matches('{').trim_end_matches('}').trim();
-                if inner.is_empty() {
+                    .map(|b| {
+                        let mut w = b.walk();
+                        let has = b.named_children(&mut w).any(|c| c.kind() != "comment");
+                        has
+                    })
+                    .unwrap_or(false);
+                if !has_stmt {
                     push_finding(
                         findings, source, lang, &format!("GR004-SWALLOWED-ERR-{sfx}"), "gardawg-ast",
                         Severity::Error, "high", file_label, line, col, snippet.clone(),
-                        "Empty `catch` block silently swallows exception.".into(),
+                        "Empty or comment-only `catch` block silently swallows exception.".into(),
                         None,
                         Some("Log, rethrow, or return a typed error inside `catch`.".into()),
                         None,
