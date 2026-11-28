@@ -88,7 +88,7 @@ Download the `-gui` binary (or build with `--features gui`). Launch it with no a
 .\gardawg-gui-windows-x86_64.exe gui --udp --listen 127.0.0.1:9000 --target 127.0.0.1:9001 --profile ble-1m
 ```
 
-## AI Agents (MCP) & Local Ollama
+## AI Agents (MCP) & Local Models
 
 Gardawg itself is 100% offline ? your host coding CLI (OpenCode, Claude Code, Cursor, Windsurf, etc.) chooses which LLM runs.
 
