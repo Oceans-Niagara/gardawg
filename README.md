@@ -1,4 +1,4 @@
-# Gardawg
+# Gardawg <img src="docs/assets/dawg.png" alt="Gardawg" height="44" align="absmiddle" />
 
 **Deterministic AI-code guardrails, physical-layer link analysis, and chaos testing in one offline-first binary.**
 
