@@ -297,6 +297,14 @@ pub fn analyze_source(
         if !seen_err_lines.insert(line) {
             continue;
         }
+        let line_txt = source.lines().nth(line.saturating_sub(1)).map(|s| s.trim().to_string());
+        if lang == Lang::TypeScript {
+            if let Some(ref lt) = line_txt {
+                if lt.starts_with("export type *") {
+                    continue;
+                }
+            }
+        }
         push_finding(
             &mut findings,
             source,
@@ -1217,8 +1225,21 @@ fn inspect_gardawg_node(
                 );
             }
 
-            // GR001: TS/JS property_signature with `: number` on monetary identifier
-            if kind == "property_signature" && text.contains(": number") && is_money_name(text) {
+            // GR001: TS/JS property_signature with `: number` on monetary identifier (excluding integer minor-unit suffixes like _cents / _bps)
+            let prop_ident = text
+                .split(':')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .trim_end_matches('?')
+                .to_ascii_lowercase();
+            let is_minor_unit_name = prop_ident.ends_with("_cents")
+                || prop_ident.ends_with("cents")
+                || prop_ident.ends_with("_minor")
+                || prop_ident.ends_with("minor")
+                || prop_ident.ends_with("_bps")
+                || prop_ident.ends_with("bps");
+            if kind == "property_signature" && text.contains(": number") && is_money_name(text) && !is_minor_unit_name {
                 push_finding(
                     findings, source, lang, &format!("GR001-FLOAT-MONEY-{sfx}"), "gardawg-ast",
                     Severity::Warning, "medium", file_label, line, col, snippet.clone(),
