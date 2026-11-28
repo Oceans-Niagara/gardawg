@@ -1,6 +1,6 @@
 [package]
 name = "gardawg"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 default-run = "gardawg"
 description = "Unified deterministic AI code guardrails, physical-layer link analyzer & chaos/impairment proxy"
