@@ -2049,5 +2049,28 @@ void loop() {
         assert_eq!(fetch_findings.len(), 1, "expected deduplicated timeout finding, got: {fetch_findings:?}");
         assert_eq!(fetch_findings[0].rule_id, "GR002-MISSING-TIMEOUT-JS");
     }
+
+    #[test]
+    fn v042_v044_regressions_and_blind_spots() {
+        // 1. UTF-8 BOM + Pydantic Field(gt=0) float + urllib.request.urlopen without timeout
+        let py = "\u{feff}import urllib.request\nfrom pydantic import BaseModel, Field\nclass Tx(BaseModel):\n    amount: float = Field(gt=0)\ndef pull():\n    return urllib.request.urlopen('https://example.com')\n";
+        let py_f = analyze_source(py, Lang::Python, "models.py", None, 1.0, false).unwrap();
+        assert!(py_f.iter().any(|f| f.rule_id == "GR001-FLOAT-MONEY-PY"));
+        assert!(py_f.iter().any(|f| f.rule_id == "GR002-MISSING-TIMEOUT-PY"));
+
+        // 2. Rust reqwest::blocking::get + .expect()
+        let rs = "pub fn pull() -> String { reqwest::blocking::get(\"https://example.com\").expect(\"req\").text().expect(\"txt\") }\n";
+        let rs_f = analyze_source(rs, Lang::Rust, "src/client.rs", None, 1.0, false).unwrap();
+        assert!(rs_f.iter().any(|f| f.rule_id == "GR002-MISSING-TIMEOUT-RUST"));
+        assert!(rs_f.iter().any(|f| f.rule_id == "GR007-PANIC-UNWRAP-RUST"));
+
+        // 3. TS 5.0 `export type *` + `_cents: number` pass cleanly, while `amount: number` & comment-only `catch` fail
+        let ts = "export type * from './types';\nexport interface Good { unit_price_cents: number; }\nexport interface Bad { amount: number; }\nexport function run() { try { work(); } catch (e) { // ignore\n } }\n";
+        let ts_f = analyze_source(ts, Lang::TypeScript, "src/index.ts", None, 1.0, false).unwrap();
+        assert!(!ts_f.iter().any(|f| f.rule_id.starts_with("GR000-SYNTAX-ERROR")), "unexpected syntax error: {ts_f:?}");
+        let money_hits: Vec<_> = ts_f.iter().filter(|f| f.rule_id == "GR001-FLOAT-MONEY-TS").collect();
+        assert_eq!(money_hits.len(), 1, "expected only `amount: number` to trigger GR001, got: {money_hits:?}");
+        assert!(ts_f.iter().any(|f| f.rule_id == "GR004-SWALLOWED-ERR-TS"));
+    }
 }
 
