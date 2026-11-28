@@ -90,7 +90,7 @@ Download the `-gui` binary (or build with `--features gui`). Launch it with no a
 
 ## AI Agents (MCP) & Local Models
 
-Gardawg itself is 100% offline ? your host coding CLI (OpenCode, Claude Code, Cursor, Windsurf, etc.) chooses which LLM runs.
+Gardawg itself is 100% offline — your host coding CLI (OpenCode, Claude Code, Cursor, Windsurf, etc.) chooses which LLM runs.
 
 * **Primary Workflow ? Agentic MCP Guardrails (`AGENTS.md` + `.mcp.json` / `opencode.json`):** `gardawg init` wires Gardawg's stdio MCP server into your project and writes a 3-step `AGENTS.md` contract (`evaluate_payload` -> `gardawg_check` -> `verify_runtime`). Pair it with OpenCode's built-in models or any tool-capable coding model so your agent checks link budgets before designing frames, fixes AST findings after every edit, and smoke-tests through the impairment proxy automatically.
 * **100% Local Ollama in `opencode.json`:** `gardawg init` includes a commented Ollama `"provider"` template (`http://127.0.0.1:11434/v1` with `"tool_call": true`) in `opencode.json` so you can uncomment it with any tool-capable `ollama list` tag.
